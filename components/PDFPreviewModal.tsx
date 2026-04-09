@@ -15,13 +15,25 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
   const [loading, setLoading] = useState(false);
 
   const handleViewPDF = async () => {
+    // Open window immediately on user click (before async work)
+    // iOS Safari blocks window.open() if called after async operations
+    const newWindow = window.open('about:blank', '_blank');
+
+    if (!newWindow) {
+      alert('Please allow popups to view the PDF');
+      return;
+    }
+
+    // Show loading message in the new tab
+    newWindow.document.write('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;"><p>Loading PDF...</p></body></html>');
+
     setLoading(true);
     try {
       const bytes = await generatePDF(quote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
       const filename = `quotes/${quote.id}/preview-${Date.now()}.pdf`;
 
-      // Upload to Supabase Storage to get a real URL (blob URLs don't work on iOS Safari)
+      // Upload to Supabase Storage to get a real URL
       const formData = new FormData();
       formData.append('file', blob, 'contract.pdf');
       formData.append('filename', filename);
@@ -37,10 +49,11 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
 
       const { url } = await uploadResponse.json();
 
-      // Open the real URL in a new tab - works on iOS Safari
-      window.open(url, '_blank');
+      // Navigate the already-open window to the PDF URL
+      newWindow.location.href = url;
     } catch (error) {
       console.error('Error generating PDF:', error);
+      newWindow.close();
       alert('Failed to generate PDF');
     } finally {
       setLoading(false);
