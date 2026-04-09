@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { useQuote } from '@/hooks/useQuote';
 import { CustomerSection } from './CustomerSection';
 import { PricingSection } from './PricingSection';
-import { TypedSignature } from './TypedSignature';
 import { ActionBar } from './ActionBar';
 import { SaveIndicator } from './SaveIndicator';
 import { formatCurrency } from '@/lib/calculations';
@@ -138,17 +137,6 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
         />
 
         <CustomerSection quote={quote} onFieldChange={updateField} />
-
-        {/* Salesperson Signature */}
-        <section className="bg-white rounded-lg border border-gray-200 p-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Salesperson Signature</h2>
-          <TypedSignature
-            label=""
-            signature={quote.salesperson_signature}
-            onSign={(dataUrl) => updateField('salesperson_signature', dataUrl)}
-            onClear={() => updateField('salesperson_signature', null)}
-          />
-        </section>
       </main>
 
       {/* Action Bar */}

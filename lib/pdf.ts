@@ -6,7 +6,7 @@ import {
   REPAIR_DESCRIPTION_BOUNDS,
   SIGNATURE_SIZE,
 } from './fieldPositions';
-import { formatCurrency } from './calculations';
+import { formatCurrency, generateSignatureDataUrl } from './calculations';
 
 // Draw text with word wrapping
 function drawWrappedText(
@@ -191,28 +191,28 @@ export async function generatePDF(quote: RepairQuote): Promise<Uint8Array> {
     }
   }
 
-  // Draw salesperson signature if present
-  if (quote.salesperson_signature) {
-    try {
-      const sigData = quote.salesperson_signature.split(',')[1];
-      const sigBytes = Uint8Array.from(atob(sigData), c => c.charCodeAt(0));
-      const sigImage = await pdfDoc.embedPng(sigBytes);
+  // Always draw salesperson signature (Colt Stonerook)
+  try {
+    // Use existing signature or generate one for Colt Stonerook
+    const salespersonSig = quote.salesperson_signature || generateSignatureDataUrl('Colt Stonerook');
+    const sigData = salespersonSig.split(',')[1];
+    const sigBytes = Uint8Array.from(atob(sigData), c => c.charCodeAt(0));
+    const sigImage = await pdfDoc.embedPng(sigBytes);
 
-      const scale = Math.min(
-        SIGNATURE_SIZE.width / sigImage.width,
-        SIGNATURE_SIZE.height / sigImage.height
-      );
+    const scale = Math.min(
+      SIGNATURE_SIZE.width / sigImage.width,
+      SIGNATURE_SIZE.height / sigImage.height
+    );
 
-      const pos = FIELD_POSITIONS.salesperson_signature;
-      page.drawImage(sigImage, {
-        x: pos.x,
-        y: pos.y,
-        width: sigImage.width * scale,
-        height: sigImage.height * scale,
-      });
-    } catch (error) {
-      console.error('Failed to embed salesperson signature:', error);
-    }
+    const pos = FIELD_POSITIONS.salesperson_signature;
+    page.drawImage(sigImage, {
+      x: pos.x,
+      y: pos.y,
+      width: sigImage.width * scale,
+      height: sigImage.height * scale,
+    });
+  } catch (error) {
+    console.error('Failed to embed salesperson signature:', error);
   }
 
   return pdfDoc.save();
