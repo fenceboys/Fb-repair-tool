@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { RepairQuote } from '@/types/quote';
 import { generatePDF, generateFilename } from '@/lib/pdf';
 import { formatCurrency } from '@/lib/calculations';
+import { supabase } from '@/lib/supabase';
 
 interface PDFPreviewModalProps {
   quote: RepairQuote;
@@ -13,6 +14,21 @@ interface PDFPreviewModalProps {
 
 export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps) {
   const [loading, setLoading] = useState(false);
+
+  // Fetch fresh quote data to get latest signature
+  const fetchFreshQuote = async (): Promise<RepairQuote> => {
+    const { data, error } = await supabase
+      .from('repair_quotes')
+      .select('*')
+      .eq('id', quote.id)
+      .single();
+
+    if (error || !data) {
+      console.error('Failed to fetch fresh quote:', error);
+      return quote; // Fallback to prop data
+    }
+    return data;
+  };
 
   const handleViewPDF = async () => {
     // Open window immediately on user click (before async work)
@@ -29,9 +45,11 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
 
     setLoading(true);
     try {
-      const bytes = await generatePDF(quote);
+      // Fetch fresh data to get latest signature (in case customer signed in another tab)
+      const freshQuote = await fetchFreshQuote();
+      const bytes = await generatePDF(freshQuote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
-      const filename = `quotes/${quote.id}/preview-${Date.now()}.pdf`;
+      const filename = `quotes/${freshQuote.id}/preview-${Date.now()}.pdf`;
 
       // Upload to Supabase Storage to get a real URL
       const formData = new FormData();
@@ -63,9 +81,11 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
   const handleSharePDF = async () => {
     setLoading(true);
     try {
-      const bytes = await generatePDF(quote);
+      // Fetch fresh data to get latest signature (in case customer signed in another tab)
+      const freshQuote = await fetchFreshQuote();
+      const bytes = await generatePDF(freshQuote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
-      const filename = generateFilename(quote);
+      const filename = generateFilename(freshQuote);
       const file = new File([blob], filename, { type: 'application/pdf' });
 
       // Use Web Share API if available (works great on iOS)
