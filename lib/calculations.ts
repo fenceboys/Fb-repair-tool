@@ -31,3 +31,21 @@ export function formatCurrency(amount: number): string {
     maximumFractionDigits: 2,
   }).format(amount);
 }
+
+export function generateSignatureDataUrl(name: string): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 100;
+  const ctx = canvas.getContext('2d');
+
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'black';
+    ctx.font = 'italic 36px "Brush Script MT", cursive, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+  }
+
+  return canvas.toDataURL('image/png');
+}

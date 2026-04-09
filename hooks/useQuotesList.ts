@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { RepairQuote } from '@/types/quote';
+import { generateSignatureDataUrl } from '@/lib/calculations';
 
 export function useQuotesList() {
   const [quotes, setQuotes] = useState<RepairQuote[]>([]);
@@ -44,6 +45,9 @@ export function useQuotesList() {
 
   const createQuote = async (): Promise<string | null> => {
     try {
+      // Pre-generate salesperson signature for Colt Stonerook
+      const salespersonSignature = generateSignatureDataUrl('Colt Stonerook');
+
       const { data, error: createError } = await supabase
         .from('repair_quotes')
         .insert({
@@ -60,6 +64,7 @@ export function useQuotesList() {
           misc: 0,
           deposit: 0,
           status: 'draft',
+          salesperson_signature: salespersonSignature,
         })
         .select()
         .single();
