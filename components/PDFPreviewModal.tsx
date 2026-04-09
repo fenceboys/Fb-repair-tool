@@ -1,0 +1,152 @@
+'use client';
+
+import { useState } from 'react';
+import type { RepairQuote } from '@/types/quote';
+import { generatePDF, generateFilename } from '@/lib/pdf';
+import { formatCurrency } from '@/lib/calculations';
+
+interface PDFPreviewModalProps {
+  quote: RepairQuote;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleViewPDF = async () => {
+    setLoading(true);
+    try {
+      const bytes = await generatePDF(quote);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+
+      // Create a link and click it - works on iOS Safari
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      // On iOS, this will open in Safari's PDF viewer with share options
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onClose();
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePDF = async () => {
+    setLoading(true);
+    try {
+      const bytes = await generatePDF(quote);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const filename = generateFilename(quote);
+
+      // Use download attribute for saving
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm overflow-hidden shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Contract</h2>
+            <button
+              onClick={onClose}
+              className="p-2 -mr-2 text-gray-400 active:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="p-4 space-y-3">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Customer</span>
+            <span className="font-medium text-gray-900">{quote.client_name}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Address</span>
+            <span className="font-medium text-gray-900 text-right max-w-[60%]">{quote.address}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Total Price</span>
+            <span className="font-medium text-gray-900">{formatCurrency(quote.quote_price)}</span>
+          </div>
+          <div className="flex justify-between pt-2 border-t border-gray-100">
+            <span className="text-gray-700 font-medium">
+              {quote.requires_deposit ? 'Deposit Due' : 'Amount Due'}
+            </span>
+            <span className="text-xl font-bold text-gray-900">{formatCurrency(amountDue)}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="p-4 pb-8 sm:pb-4 bg-gray-50 space-y-3">
+          <button
+            onClick={handleViewPDF}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-blue-600 text-white font-medium rounded-xl active:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            )}
+            View PDF
+          </button>
+
+          <button
+            onClick={handleSavePDF}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl active:bg-gray-100 disabled:opacity-50 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Save to Files
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
