@@ -16,13 +16,13 @@ export function PricingSection({
   onSetSellPrice,
   onToggleDeposit,
 }: PricingSectionProps) {
-  // Add 33% markup to cost, rounded up to nearest $10
+  // Add 33% markup to cost
   const baseCost = quote.base_cost || 0;
-  const markedUpPrice = baseCost > 0 ? baseCost * 1.33 : 0;
-  const total = Math.ceil(markedUpPrice / 10) * 10;
+  const minPrice = baseCost > 0 ? Math.round(baseCost * 1.33 * 100) / 100 : 0; // Exact 33% markup
+  const suggestedPrice = Math.ceil(minPrice / 10) * 10; // Rounded up to nearest $10
 
-  // Misc is the difference between sell price and calculated total
-  const misc = (quote.quote_price || 0) - total;
+  // Misc is the difference between sell price and minimum price
+  const misc = (quote.quote_price || 0) - minPrice;
 
   const requiresDeposit = quote.requires_deposit ?? false;
   const amountDue = requiresDeposit ? quote.deposit : quote.quote_price;
@@ -50,10 +50,10 @@ export function PricingSection({
           </div>
         </div>
 
-        {/* Total with 33% margin (auto-calculated) */}
+        {/* Minimum price with 33% markup (auto-calculated) */}
         <div className="flex justify-between items-center py-3 px-4 bg-blue-50 rounded-lg">
-          <span className="font-semibold text-blue-900">Total (w/ 33%):</span>
-          <span className="text-2xl font-bold text-blue-900">{formatCurrency(total)}</span>
+          <span className="font-semibold text-blue-900">Min (w/ 33%):</span>
+          <span className="text-2xl font-bold text-blue-900">{formatCurrency(minPrice)}</span>
         </div>
 
         {/* Sell Price (editable) */}
@@ -68,7 +68,7 @@ export function PricingSection({
               inputMode="decimal"
               value={quote.quote_price || ''}
               onChange={(e) => onSetSellPrice(parseFloat(e.target.value) || 0)}
-              placeholder={total > 0 ? total.toString() : '0'}
+              placeholder={suggestedPrice > 0 ? suggestedPrice.toString() : '0'}
               className="flex-1 px-4 py-3 border-2 border-green-500 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xl font-bold bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
