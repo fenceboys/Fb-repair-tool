@@ -13,6 +13,7 @@ interface QuoteData {
   repair_description: string;
   quote_price: number;
   deposit: number;
+  requires_deposit: boolean;
   client_signature: string | null;
 }
 
@@ -33,7 +34,7 @@ export default function CustomerSignPage() {
       try {
         const { data, error: fetchError } = await supabase
           .from('repair_quotes')
-          .select('id, client_name, address, city_state, repair_description, quote_price, deposit, client_signature')
+          .select('id, client_name, address, city_state, repair_description, quote_price, deposit, requires_deposit, client_signature')
           .eq('id', quoteId)
           .single();
 
@@ -218,9 +219,11 @@ export default function CustomerSignPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Deposit Due (50%):</span>
+                    <span className="text-gray-600">
+                      {quote.requires_deposit ? 'Deposit Due (50%):' : 'Amount Due:'}
+                    </span>
                     <span className="text-lg font-semibold text-blue-600">
-                      {formatCurrency(quote.deposit)}
+                      {formatCurrency(quote.requires_deposit ? quote.deposit : quote.quote_price)}
                     </span>
                   </div>
                 </div>
