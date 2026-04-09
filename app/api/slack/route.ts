@@ -110,20 +110,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Add action item for Cielo
-    // To mention a user, use their Slack user ID in format <@U1234567890>
-    const cieloUserId = process.env.CIELO_SLACK_USER_ID || 'Cielo';
-    const cieloMention = cieloUserId.startsWith('U') ? `<@${cieloUserId}>` : `*@${cieloUserId}*`;
+    const cieloUserId = process.env.CIELO_SLACK_USER_ID;
     const contactInfo = quote.email ? quote.email : quote.phone;
     const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
     const paymentType = quote.requires_deposit ? '(50% deposit)' : '(full payment)';
+
+    // Use text field instead of fields for better mention support
     message.blocks.push({
       type: 'section',
-      fields: [
-        {
-          type: 'mrkdwn',
-          text: `${cieloMention} create stripe link for *${formatCurrency(amountDue)}* ${paymentType} & send to *${contactInfo}* with copy of PDF`,
-        },
-      ],
+      text: {
+        type: 'mrkdwn',
+        text: cieloUserId
+          ? `<@${cieloUserId}> create stripe link for *${formatCurrency(amountDue)}* ${paymentType} & send to *${contactInfo}* with copy of PDF`
+          : `*@Cielo* create stripe link for *${formatCurrency(amountDue)}* ${paymentType} & send to *${contactInfo}* with copy of PDF`,
+      },
     });
 
     message.blocks.push({
