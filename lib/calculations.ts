@@ -4,8 +4,8 @@ export function calculateTotal(lineItems: LineItem[]) {
   // Base cost is sum of all line item costs (raw material/labor cost)
   const baseCost = lineItems.reduce((sum, item) => sum + (item.cost || 0), 0);
 
-  // Total with 33% margin markup (divide by 0.67), rounded up to nearest $10
-  const markedUpPrice = baseCost > 0 ? baseCost / 0.67 : 0;
+  // Add 33% markup to cost, rounded up to nearest $10
+  const markedUpPrice = baseCost > 0 ? baseCost * 1.33 : 0;
   const total = Math.ceil(markedUpPrice / 10) * 10;
 
   return {

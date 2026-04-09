@@ -16,9 +16,9 @@ export function PricingSection({
   onSetSellPrice,
   onToggleDeposit,
 }: PricingSectionProps) {
-  // Calculate total with 33% margin: cost / 0.67, rounded up to nearest $10
+  // Add 33% markup to cost, rounded up to nearest $10
   const baseCost = quote.base_cost || 0;
-  const markedUpPrice = baseCost > 0 ? baseCost / 0.67 : 0;
+  const markedUpPrice = baseCost > 0 ? baseCost * 1.33 : 0;
   const total = Math.ceil(markedUpPrice / 10) * 10;
 
   // Misc is the difference between sell price and calculated total
