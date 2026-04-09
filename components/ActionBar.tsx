@@ -80,7 +80,7 @@ export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-8 safe-area-pb">
+      <div className="fixed bottom-4 left-4 right-4 bg-white border border-gray-200 rounded-xl p-4 shadow-lg">
         <div className="max-w-2xl mx-auto flex gap-3">
           {/* Customer Sign - Left (hidden after signing) */}
           {!quote.client_signature && (

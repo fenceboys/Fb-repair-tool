@@ -33,7 +33,14 @@ export async function POST(request: NextRequest) {
         minimumFractionDigits: 0,
       }).format(amount);
 
-    const message = {
+    // Build the action text for Cielo
+    const contactInfo = quote.email ? quote.email : quote.phone;
+    const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
+    const actionText = `*Cielo* create stripe link for *${formatCurrency(amountDue)}* & send to *${contactInfo}* with copy of PDF`;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const message: { text: string; blocks: any[] } = {
+      text: actionText,
       blocks: [
         {
           type: 'header',
@@ -75,8 +82,8 @@ export async function POST(request: NextRequest) {
             {
               type: 'mrkdwn',
               text: quote.requires_deposit
-                ? `*Deposit (50%):*\n${formatCurrency(quote.deposit)}`
-                : `*Amount Due:*\n${formatCurrency(quote.quote_price)} (Full)`,
+                ? `*Deposit Due:*\n${formatCurrency(quote.deposit)}`
+                : `*Amount Due:*\n${formatCurrency(quote.quote_price)}`,
             },
           ],
         },
@@ -110,25 +117,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Add action item for Cielo
-    const cieloUserId = process.env.CIELO_SLACK_USER_ID;
-    const contactInfo = quote.email ? quote.email : quote.phone;
-    const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
-    const paymentType = quote.requires_deposit ? '(50% deposit)' : '(full payment)';
-
-    // Use text field instead of fields for better mention support
     message.blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: cieloUserId
-          ? `<@${cieloUserId}> create stripe link for *${formatCurrency(amountDue)}* ${paymentType} & send to *${contactInfo}* with copy of PDF`
-          : `*@Cielo* create stripe link for *${formatCurrency(amountDue)}* ${paymentType} & send to *${contactInfo}* with copy of PDF`,
+        text: actionText,
       },
     });
 
     message.blocks.push({
       type: 'context',
-      // @ts-expect-error - Slack block types are flexible
       elements: [
         {
           type: 'mrkdwn',

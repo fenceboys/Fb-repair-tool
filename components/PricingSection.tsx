@@ -16,9 +16,9 @@ export function PricingSection({
   onSetSellPrice,
   onToggleDeposit,
 }: PricingSectionProps) {
-  // Add 33% markup to cost
+  // Apply 33% margin (cost / 0.67)
   const baseCost = quote.base_cost || 0;
-  const minPrice = baseCost > 0 ? Math.round(baseCost * 1.33 * 100) / 100 : 0; // Exact 33% markup
+  const minPrice = baseCost > 0 ? Math.round((baseCost / 0.67) * 100) / 100 : 0; // 33% margin
   const suggestedPrice = Math.ceil(minPrice / 10) * 10; // Rounded up to nearest $10
 
   // Misc is the difference between sell price and minimum price
