@@ -21,12 +21,22 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      // On iOS Safari, navigate current window to blob URL
-      // User can tap "Done" to go back
-      window.location.href = url;
+      // Create a link and click it to open in new tab
+      // This works better on iOS Safari than window.open()
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF');
+    } finally {
       setLoading(false);
     }
   };
