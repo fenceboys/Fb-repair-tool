@@ -18,7 +18,7 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
     setLoading(true);
     try {
       const bytes = await generatePDF(quote);
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       // Create a link and click it - works on iOS Safari
@@ -46,7 +46,7 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
     setLoading(true);
     try {
       const bytes = await generatePDF(quote);
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const filename = generateFilename(quote);
 
