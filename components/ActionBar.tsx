@@ -74,7 +74,8 @@ export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
   };
 
   const handleCustomerSign = () => {
-    router.push(`/sign/${quote.id}`);
+    // Open in new tab with customer flag to hide back button
+    window.open(`/sign/${quote.id}?customer=true`, '_blank');
   };
 
   return (

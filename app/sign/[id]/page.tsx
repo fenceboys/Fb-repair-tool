@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/calculations';
 
@@ -20,7 +20,9 @@ interface QuoteData {
 export default function CustomerSignPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const quoteId = params.id as string;
+  const isCustomerMode = searchParams.get('customer') === 'true';
 
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,8 +144,8 @@ export default function CustomerSignPage() {
         </div>
       </header>
 
-      {/* Back button for repair person - shown after signing */}
-      {signed && (
+      {/* Back button for repair person - shown after signing, hidden from customers */}
+      {signed && !isCustomerMode && (
         <div className="max-w-lg mx-auto px-4 pt-4">
           <button
             onClick={() => router.push(`/quote/${quoteId}`)}
