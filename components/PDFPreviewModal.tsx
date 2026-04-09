@@ -21,47 +21,47 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
-      // Create a link and click it - works on iOS Safari
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      // On iOS, this will open in Safari's PDF viewer with share options
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up after a delay
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      onClose();
+      // On iOS Safari, navigate current window to blob URL
+      // User can tap "Done" to go back
+      window.location.href = url;
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF');
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleSavePDF = async () => {
+  const handleSharePDF = async () => {
     setLoading(true);
     try {
       const bytes = await generatePDF(quote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
       const filename = generateFilename(quote);
+      const file = new File([blob], filename, { type: 'application/pdf' });
 
-      // Use download attribute for saving
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      // Use Web Share API if available (works great on iOS)
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Fence Boys Repair Contract',
+        });
+      } else {
+        // Fallback: create download link
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF');
+      // User cancelled share - not an error
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error sharing PDF:', error);
+        alert('Failed to share PDF');
+      }
     } finally {
       setLoading(false);
     }
@@ -136,14 +136,14 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
           </button>
 
           <button
-            onClick={handleSavePDF}
+            onClick={handleSharePDF}
             disabled={loading}
             className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-xl active:bg-gray-100 disabled:opacity-50 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
-            Save to Files
+            Share / Save
           </button>
         </div>
       </div>
