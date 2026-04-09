@@ -19,20 +19,26 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
     try {
       const bytes = await generatePDF(quote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
+      const filename = `quotes/${quote.id}/preview-${Date.now()}.pdf`;
 
-      // Create a link and click it to open in new tab
-      // This works better on iOS Safari than window.open()
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Upload to Supabase Storage to get a real URL (blob URLs don't work on iOS Safari)
+      const formData = new FormData();
+      formData.append('file', blob, 'contract.pdf');
+      formData.append('filename', filename);
 
-      // Clean up blob URL after a delay
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      const uploadResponse = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload PDF');
+      }
+
+      const { url } = await uploadResponse.json();
+
+      // Open the real URL in a new tab - works on iOS Safari
+      window.open(url, '_blank');
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF');
