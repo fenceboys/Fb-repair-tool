@@ -212,20 +212,22 @@ export default function CustomerSignPage() {
                 </div>
 
                 <div className="pt-3 border-t border-gray-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-600">Total Price:</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">
+                      {quote.requires_deposit ? 'Total Price:' : 'Amount Due:'}
+                    </span>
                     <span className="text-xl font-bold">
                       {formatCurrency(quote.quote_price)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">
-                      {quote.requires_deposit ? 'Deposit Due (50%):' : 'Amount Due:'}
-                    </span>
-                    <span className="text-lg font-semibold text-blue-600">
-                      {formatCurrency(quote.requires_deposit ? quote.deposit : quote.quote_price)}
-                    </span>
-                  </div>
+                  {quote.requires_deposit && (
+                    <div className="flex justify-between items-center mt-2">
+                      <span className="text-gray-600">Deposit Due (50%):</span>
+                      <span className="text-lg font-semibold text-blue-600">
+                        {formatCurrency(quote.deposit)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
