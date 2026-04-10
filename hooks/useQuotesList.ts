@@ -71,9 +71,6 @@ export function useQuotesList() {
 
       if (createError) throw createError;
 
-      // Refresh the list
-      await fetchQuotes();
-
       return data?.id || null;
     } catch (err) {
       console.error('Error creating quote:', err);

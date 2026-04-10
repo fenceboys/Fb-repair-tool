@@ -70,6 +70,7 @@ export function ActionBar({ quote }: ActionBarProps) {
             deposit: quote.deposit,
             requires_deposit: quote.requires_deposit ?? false,
             repair_description: quote.repair_description,
+            is_signed: !!quote.client_signature,
           },
           pdfBase64: base64,
           filename,

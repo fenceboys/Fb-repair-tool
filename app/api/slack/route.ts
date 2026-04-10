@@ -10,6 +10,7 @@ interface QuotePayload {
   deposit: number;
   requires_deposit: boolean;
   repair_description?: string;
+  is_signed?: boolean;
 }
 
 interface SlackUploadRequest {
@@ -125,11 +126,12 @@ export async function POST(request: NextRequest) {
       messageLines.push('', `:memo: *Note:* ${customMessage}`);
     }
 
-    // Add Cielo action line
-    messageLines.push(
-      '',
-      `_Cielo: create stripe link for ${formatCurrency(amountDue)} & send to ${contactInfo}_`
-    );
+    // Add action line based on signature status
+    if (quote.is_signed) {
+      messageLines.push('', `:white_check_mark: *Signed* - Ready for payment`);
+    } else {
+      messageLines.push('', `:pencil2: *Unsigned* - Send for signature via Adobe Acrobat`);
+    }
 
     const initialComment = messageLines.join('\n');
 

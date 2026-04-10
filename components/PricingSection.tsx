@@ -16,9 +16,9 @@ export function PricingSection({
   onSetSellPrice,
   onToggleDeposit,
 }: PricingSectionProps) {
-  // Apply 33% margin (cost / 0.67)
+  // Apply 25% margin (cost / 0.75)
   const baseCost = quote.base_cost || 0;
-  const minPrice = baseCost > 0 ? Math.round((baseCost / 0.67) * 100) / 100 : 0; // 33% margin
+  const minPrice = baseCost > 0 ? Math.round((baseCost / 0.75) * 100) / 100 : 0; // 25% margin
   const suggestedPrice = Math.ceil(minPrice / 10) * 10; // Rounded up to nearest $10
 
   // Misc is the difference between sell price and minimum price
@@ -35,7 +35,7 @@ export function PricingSection({
         {/* Base Cost Input */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Your Cost
+            Your Cost <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-2">
             <span className="text-gray-500 text-lg">$</span>
@@ -52,14 +52,14 @@ export function PricingSection({
 
         {/* Minimum price with 33% markup (auto-calculated) */}
         <div className="flex justify-between items-center py-3 px-4 bg-blue-50 rounded-lg">
-          <span className="font-semibold text-blue-900">Min (w/ 33%):</span>
+          <span className="font-semibold text-blue-900">Min (w/ 25%):</span>
           <span className="text-2xl font-bold text-blue-900">{formatCurrency(minPrice)}</span>
         </div>
 
         {/* Sell Price (editable) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Sell Price
+            Sell Price <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-2">
             <span className="text-gray-500 text-lg">$</span>
@@ -68,7 +68,7 @@ export function PricingSection({
               inputMode="decimal"
               value={quote.quote_price || ''}
               onChange={(e) => onSetSellPrice(parseFloat(e.target.value) || 0)}
-              placeholder={suggestedPrice > 0 ? suggestedPrice.toString() : '0'}
+              placeholder=""
               className="flex-1 px-4 py-3 border-2 border-green-500 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xl font-bold bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
