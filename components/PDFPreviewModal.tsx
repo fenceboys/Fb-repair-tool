@@ -49,26 +49,12 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
       const freshQuote = await fetchFreshQuote();
       const bytes = await generatePDF(freshQuote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
-      const filename = `quotes/${freshQuote.id}/preview-${Date.now()}.pdf`;
 
-      // Upload to Supabase Storage to get a real URL
-      const formData = new FormData();
-      formData.append('file', blob, 'contract.pdf');
-      formData.append('filename', filename);
+      // Create a local blob URL (no Supabase upload needed)
+      const blobUrl = URL.createObjectURL(blob);
 
-      const uploadResponse = await fetch('/api/upload-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload PDF');
-      }
-
-      const { url } = await uploadResponse.json();
-
-      // Navigate the already-open window to the PDF URL
-      newWindow.location.href = url;
+      // Navigate the already-open window to the blob URL
+      newWindow.location.href = blobUrl;
     } catch (error) {
       console.error('Error generating PDF:', error);
       newWindow.close();

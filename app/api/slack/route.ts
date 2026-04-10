@@ -12,144 +12,159 @@ interface QuotePayload {
   repair_description?: string;
 }
 
+interface SlackUploadRequest {
+  quote: QuotePayload;
+  pdfBase64: string;
+  filename: string;
+  customMessage?: string;
+}
+
+interface SlackUploadUrlResponse {
+  ok: boolean;
+  upload_url: string;
+  file_id: string;
+  error?: string;
+}
+
+interface SlackCompleteResponse {
+  ok: boolean;
+  error?: string;
+}
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+  }).format(amount);
+
 export async function POST(request: NextRequest) {
   try {
-    const { quote, pdfUrl } = (await request.json()) as { quote: QuotePayload; pdfUrl?: string };
+    const { quote, pdfBase64, filename, customMessage } =
+      (await request.json()) as SlackUploadRequest;
 
-    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    const botToken = process.env.SLACK_BOT_TOKEN;
+    const channelId = process.env.SLACK_CHANNEL_ID;
 
-    if (!webhookUrl || webhookUrl === 'your-slack-webhook-url-here') {
-      console.warn('Slack webhook URL not configured');
+    if (!botToken || botToken === 'xoxb-your-bot-token-here') {
+      console.warn('Slack bot token not configured');
       return NextResponse.json(
         { success: true, message: 'Slack not configured - skipped' },
         { status: 200 }
       );
     }
 
-    const formatCurrency = (amount: number) =>
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 0,
-      }).format(amount);
-
-    // Build the action text for Cielo
-    const contactInfo = quote.email ? quote.email : quote.phone;
-    const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
-    const actionText = `*Cielo* create stripe link for *${formatCurrency(amountDue)}* & send to *${contactInfo}* with copy of PDF`;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const message: { text: string; blocks: any[] } = {
-      text: actionText,
-      blocks: [
-        {
-          type: 'header',
-          text: {
-            type: 'plain_text',
-            text: '🔧 New Repair Quote',
-            emoji: true,
-          },
-        },
-        {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Customer:*\n${quote.client_name}`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Phone:*\n${quote.phone}`,
-            },
-          ],
-        },
-        {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: `*Address:*\n${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
-            },
-            {
-              type: 'mrkdwn',
-              text: `*Quote Price:*\n${formatCurrency(quote.quote_price)}`,
-            },
-          ],
-        },
-        {
-          type: 'section',
-          fields: [
-            {
-              type: 'mrkdwn',
-              text: quote.requires_deposit
-                ? `*Deposit Due:*\n${formatCurrency(quote.deposit)}`
-                : `*Amount Due:*\n${formatCurrency(quote.quote_price)}`,
-            },
-          ],
-        },
-      ],
-    };
-
-    // Add repair description if present
-    if (quote.repair_description?.trim()) {
-      message.blocks.push({
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: `*Repair Description:*\n${quote.repair_description}`,
-          },
-        ],
-      });
+    if (!channelId || channelId === 'C0XXXXXXX') {
+      console.warn('Slack channel ID not configured');
+      return NextResponse.json(
+        { success: true, message: 'Slack channel not configured - skipped' },
+        { status: 200 }
+      );
     }
 
-    // Add PDF link if present
-    if (pdfUrl) {
-      message.blocks.push({
-        type: 'section',
-        fields: [
-          {
-            type: 'mrkdwn',
-            text: `*Contract PDF:*\n<${pdfUrl}|Download PDF>`,
-          },
-        ],
-      });
+    // Decode base64 PDF to binary
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64');
+
+    // Step 1: Get upload URL from Slack
+    const uploadUrlResponse = await fetch(
+      'https://slack.com/api/files.getUploadURLExternal',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${botToken}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          filename: filename,
+          length: pdfBuffer.length.toString(),
+        }),
+      }
+    );
+
+    const uploadUrlData: SlackUploadUrlResponse = await uploadUrlResponse.json();
+
+    if (!uploadUrlData.ok) {
+      console.error('Failed to get upload URL:', uploadUrlData.error);
+      throw new Error(`Slack API error: ${uploadUrlData.error}`);
     }
 
-    // Add action item for Cielo
-    message.blocks.push({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: actionText,
-      },
-    });
-
-    message.blocks.push({
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `Sent from Fence Boys Repair Tool • ${new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' })}`,
-        },
-      ],
-    });
-
-    const response = await fetch(webhookUrl, {
+    // Step 2: Upload the file bytes to the provided URL
+    const uploadResponse = await fetch(uploadUrlData.upload_url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+      body: pdfBuffer,
     });
 
-    if (!response.ok) {
-      throw new Error(`Slack responded with ${response.status}`);
+    if (!uploadResponse.ok) {
+      throw new Error(`File upload failed: ${uploadResponse.status}`);
+    }
+
+    // Build the message for initial_comment
+    const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
+    const contactInfo = quote.email || quote.phone;
+
+    let messageLines = [
+      `:wrench: *New Repair Quote*`,
+      '',
+      `*Customer:* ${quote.client_name}`,
+      `*Phone:* ${quote.phone}`,
+      `*Address:* ${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
+      `*Quote Price:* ${formatCurrency(quote.quote_price)}`,
+      quote.requires_deposit
+        ? `*Deposit Due:* ${formatCurrency(quote.deposit)}`
+        : `*Amount Due:* ${formatCurrency(quote.quote_price)}`,
+    ];
+
+    if (quote.repair_description?.trim()) {
+      messageLines.push('', `*Repair:* ${quote.repair_description}`);
+    }
+
+    if (customMessage?.trim()) {
+      messageLines.push('', `:memo: *Note:* ${customMessage}`);
+    }
+
+    // Add Cielo action line
+    messageLines.push(
+      '',
+      `_Cielo: create stripe link for ${formatCurrency(amountDue)} & send to ${contactInfo}_`
+    );
+
+    const initialComment = messageLines.join('\n');
+
+    // Step 3: Complete the upload and share to channel
+    const completeResponse = await fetch(
+      'https://slack.com/api/files.completeUploadExternal',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${botToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          files: [{ id: uploadUrlData.file_id, title: filename }],
+          channel_id: channelId,
+          initial_comment: initialComment,
+        }),
+      }
+    );
+
+    const completeData: SlackCompleteResponse = await completeResponse.json();
+
+    if (!completeData.ok) {
+      console.error('Failed to complete upload:', completeData.error);
+      throw new Error(`Slack API error: ${completeData.error}`);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error sending to Slack:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to send to Slack' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to send to Slack',
+      },
       { status: 500 }
     );
   }

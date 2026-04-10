@@ -25,33 +25,6 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
     toggleDeposit,
   } = useQuote(quoteId);
 
-  const handleSendToSlack = async (pdfUrl?: string) => {
-    if (!quote) return;
-
-    const response = await fetch('/api/slack', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        quote: {
-          client_name: quote.client_name,
-          phone: quote.phone,
-          email: quote.email,
-          address: quote.address,
-          city_state: quote.city_state,
-          quote_price: quote.quote_price,
-          deposit: quote.deposit,
-          requires_deposit: quote.requires_deposit ?? false,
-          repair_description: quote.repair_description,
-        },
-        pdfUrl,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send to Slack');
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -140,7 +113,7 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
       </main>
 
       {/* Action Bar */}
-      <ActionBar quote={quote} onSendToSlack={handleSendToSlack} />
+      <ActionBar quote={quote} />
     </div>
   );
 }

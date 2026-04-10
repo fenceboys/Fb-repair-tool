@@ -1,73 +1,89 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import type { RepairQuote } from '@/types/quote';
 import { generatePDFBlob, generateFilename } from '@/lib/pdf';
 import { PDFPreviewModal } from './PDFPreviewModal';
+import { SlackMessageModal } from './SlackMessageModal';
 
 interface ActionBarProps {
   quote: RepairQuote;
-  onSendToSlack: (pdfUrl?: string) => Promise<void>;
 }
 
-export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
-  const router = useRouter();
+export function ActionBar({ quote }: ActionBarProps) {
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [showSlackModal, setShowSlackModal] = useState(false);
   const [slackLoading, setSlackLoading] = useState(false);
   const [slackSent, setSlackSent] = useState(false);
 
-  // Validation
+  // Validation - either sell price or base cost must be set
   const isValid =
     quote.client_name?.trim() &&
     quote.phone?.trim() &&
     quote.address?.trim() &&
-    quote.quote_price > 0;
+    (quote.quote_price > 0 || quote.base_cost > 0);
 
   const handleViewPDF = () => {
     if (!isValid) {
-      alert('Please fill in required fields: Client Name, Phone, Address, and Quote Price');
+      alert('Please fill in required fields: Client Name, Phone, Address, and either Cost or Sell Price');
       return;
     }
     setShowPDFPreview(true);
   };
 
-  const handleSendToSlack = async () => {
+  const handleSlackButtonClick = () => {
     if (!isValid) {
-      alert('Please fill in required fields before sending to Slack');
+      alert('Please fill in required fields: Client Name, Phone, Address, and either Cost or Sell Price');
       return;
     }
+    setShowSlackModal(true);
+  };
 
+  const handleSendToSlack = async (customMessage: string) => {
     setSlackLoading(true);
     try {
-      // Generate PDF and upload via API route
+      // Generate PDF blob
       const pdfBlob = await generatePDFBlob(quote);
-      const filename = `quotes/${quote.id}/${generateFilename(quote)}`;
+      const filename = generateFilename(quote);
 
-      const formData = new FormData();
-      formData.append('file', pdfBlob, 'contract.pdf');
-      formData.append('filename', filename);
+      // Convert PDF blob to base64
+      const arrayBuffer = await pdfBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64 = btoa(binary);
 
-      const uploadResponse = await fetch('/api/upload-pdf', {
+      // Send directly to Slack API with file attachment
+      const response = await fetch('/api/slack', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quote: {
+            client_name: quote.client_name,
+            phone: quote.phone,
+            email: quote.email,
+            address: quote.address,
+            city_state: quote.city_state,
+            quote_price: quote.quote_price,
+            deposit: quote.deposit,
+            requires_deposit: quote.requires_deposit ?? false,
+            repair_description: quote.repair_description,
+          },
+          pdfBase64: base64,
+          filename,
+          customMessage,
+        }),
       });
 
-      let pdfUrl: string | undefined;
-      if (uploadResponse.ok) {
-        const uploadData = await uploadResponse.json();
-        pdfUrl = uploadData.url;
-      } else {
-        const errorData = await uploadResponse.json();
-        console.error('PDF upload failed:', errorData.error);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send to Slack');
       }
 
-      await onSendToSlack(pdfUrl);
       setSlackSent(true);
       setTimeout(() => setSlackSent(false), 3000);
-    } catch (error) {
-      console.error('Error sending to Slack:', error);
-      alert('Failed to send to Slack');
     } finally {
       setSlackLoading(false);
     }
@@ -136,7 +152,7 @@ export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
 
           {/* Slack - Right */}
           <button
-            onClick={handleSendToSlack}
+            onClick={handleSlackButtonClick}
             disabled={slackLoading || slackSent || !isValid}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 font-medium rounded-lg transition-colors ${
               slackSent
@@ -144,9 +160,7 @@ export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
                 : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed'
             }`}
           >
-            {slackLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : slackSent ? (
+            {slackSent ? (
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -174,6 +188,14 @@ export function ActionBar({ quote, onSendToSlack }: ActionBarProps) {
         quote={quote}
         isOpen={showPDFPreview}
         onClose={() => setShowPDFPreview(false)}
+      />
+
+      <SlackMessageModal
+        quote={quote}
+        isOpen={showSlackModal}
+        onClose={() => setShowSlackModal(false)}
+        onSend={handleSendToSlack}
+        loading={slackLoading}
       />
     </>
   );
