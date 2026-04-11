@@ -38,6 +38,8 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
   const [slackSent, setSlackSent] = useState(false);
 
   const isSigned = !!quote.client_signature;
+  const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled';
+  const canSign = quote.status === 'awaiting_signature' && !isSigned;
 
   const handleSendSMS = async () => {
     // Get the customer's phone number (strip formatting for SMS)
@@ -307,13 +309,38 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
           </div>
         </div>
       ) : (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-8 sm:pb-4 shadow-lg z-30">
-          <div className="max-w-lg mx-auto flex gap-3">
-            {/* Sign Button - hidden if signed */}
-            {!isSigned && (
+        // External customer view - only show actions when relevant
+        // Don't show action bar when paid or scheduled (they've completed their actions)
+        isPaidOrScheduled ? null : (
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 pb-8 sm:pb-4 shadow-lg z-30">
+            <div className="max-w-lg mx-auto flex gap-3">
+              {/* Sign Button - only show when awaiting_signature and not signed */}
+              {canSign && (
+                <button
+                  onClick={() => setShowSignature(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 font-medium rounded-lg transition-colors bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
+                  </svg>
+                  <span>Sign Contract</span>
+                </button>
+              )}
+
+              {/* View PDF Button */}
               <button
-                onClick={() => setShowSignature(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 font-medium rounded-lg transition-colors bg-gray-600 text-white hover:bg-gray-700 active:bg-gray-800"
+                onClick={() => setShowPDFPreview(true)}
+                className={`flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors ${canSign ? 'flex-1' : 'flex-1'}`}
               >
                 <svg
                   className="w-5 h-5"
@@ -325,41 +352,14 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span>Sign</span>
+                <span>View Proposal</span>
               </button>
-            )}
-
-            {/* View PDF Button */}
-            <button
-              onClick={() => setShowPDFPreview(true)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              <span>View PDF</span>
-            </button>
+            </div>
           </div>
-        </div>
+        )
       )}
 
       {/* Modals */}
