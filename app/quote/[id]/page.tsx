@@ -221,12 +221,6 @@ export default function QuoteDetailsPage() {
     });
   };
 
-  const copyCustomerLink = () => {
-    const url = `${window.location.origin}/customer/${quoteId}`;
-    navigator.clipboard.writeText(url);
-    alert('Customer portal link copied to clipboard!');
-  };
-
   const viewPDF = async () => {
     if (!quote) return;
 
@@ -402,17 +396,17 @@ export default function QuoteDetailsPage() {
 
           {/* Customer Portal */}
           <button
-            onClick={copyCustomerLink}
+            onClick={() => window.open(`/customer/${quoteId}`, '_blank')}
             className="bg-white rounded-lg border border-gray-200 p-6 hover:border-purple-400 hover:shadow-md transition-all flex flex-col items-center gap-3 text-center w-full"
           >
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Customer Repair Portal</p>
-              <p className="text-sm text-gray-500">Copy link to send</p>
+              <p className="font-semibold text-gray-900">Customer Portal</p>
+              <p className="text-sm text-gray-500">Open in new tab</p>
             </div>
           </button>
 

@@ -21,6 +21,7 @@ interface QuoteData {
   client_signature: string | null;
   base_cost: number;
   status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  scheduled_date: string | null;
 }
 
 export default function CustomerViewPage() {
@@ -39,7 +40,7 @@ export default function CustomerViewPage() {
     try {
       const { data, error: fetchError } = await supabase
         .from('repair_quotes')
-        .select('id, client_name, phone, email, address, city_state, repair_description, quote_price, deposit, requires_deposit, client_signature, base_cost, status')
+        .select('id, client_name, phone, email, address, city_state, repair_description, quote_price, deposit, requires_deposit, client_signature, base_cost, status, scheduled_date')
         .eq('id', quoteId)
         .single();
 
@@ -95,7 +96,24 @@ export default function CustomerViewPage() {
   }
 
   const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
-  const isPaid = quote.status === 'paid' || paymentComplete;
+  const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled' || paymentComplete;
+  const needsSignature = quote.status === 'awaiting_signature' && !quote.client_signature;
+  const needsPayment = quote.status === 'awaiting_payment' || (quote.status === 'awaiting_signature' && quote.client_signature);
+
+  const formatScheduledDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const dateStr = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    return `${dateStr} at ${timeStr}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -163,52 +181,75 @@ export default function CustomerViewPage() {
           </div>
         </section>
 
-        {/* Signature & Payment Status */}
-        {quote.client_signature && (
+        {/* Status-based UI */}
+
+        {/* Awaiting Signature - prompt to sign */}
+        {needsSignature && !isInternal && (
+          <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <svg className="h-8 w-8 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              <div>
+                <p className="font-semibold text-blue-800">Signature Required</p>
+                <p className="text-sm text-blue-600">Please review and sign to proceed.</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Awaiting Payment - signed, needs payment */}
+        {needsPayment && !isPaidOrScheduled && (
           <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
             <div className="flex items-center gap-3">
-              <svg
-                className="h-8 w-8 text-green-500 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
                 <p className="font-semibold text-green-800">Contract Signed</p>
-                <p className="text-sm text-green-600">
-                  {isPaid
-                    ? 'Payment received. Thank you!'
-                    : 'Ready to pay your deposit.'}
-                </p>
+                <p className="text-sm text-green-600">Ready to pay your {quote.requires_deposit ? 'deposit' : 'balance'}.</p>
               </div>
             </div>
 
-            {/* Pay Now Button - shows after signing, hides after payment */}
-            {!isPaid && (
-              <button
-                onClick={() => setShowPayment(true)}
-                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                Pay {formatCurrency(amountDue)} Now
-              </button>
-            )}
+            <button
+              onClick={() => setShowPayment(true)}
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Pay {formatCurrency(amountDue)} Now
+            </button>
+          </section>
+        )}
 
-            {/* Payment Success State */}
-            {isPaid && (
-              <div className="mt-4 p-3 bg-green-100 rounded-lg text-center">
-                <p className="text-green-800 font-medium">We'll be in touch to schedule your repair!</p>
+        {/* Paid - waiting for scheduling */}
+        {quote.status === 'paid' && (
+          <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="font-semibold text-green-800">Payment Received</p>
+                <p className="text-sm text-green-600">Thank you! We'll be in touch to schedule your repair.</p>
               </div>
-            )}
+            </div>
+          </section>
+        )}
+
+        {/* Repair Scheduled - show appointment date */}
+        {quote.status === 'repair_scheduled' && quote.scheduled_date && (
+          <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center gap-3">
+              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <div>
+                <p className="font-semibold text-green-800">Repair Scheduled</p>
+                <p className="text-sm text-green-600">{formatScheduledDate(quote.scheduled_date)}</p>
+              </div>
+            </div>
           </section>
         )}
       </main>
