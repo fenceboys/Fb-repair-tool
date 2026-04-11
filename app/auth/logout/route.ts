@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function POST(request: NextRequest) {
+async function handleLogout(request: NextRequest) {
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,5 +24,14 @@ export async function POST(request: NextRequest) {
 
   await supabase.auth.signOut();
 
-  return NextResponse.redirect(new URL('/login', request.url));
+  const loginUrl = new URL('/login', request.url);
+  return NextResponse.redirect(loginUrl, { status: 302 });
+}
+
+export async function POST(request: NextRequest) {
+  return handleLogout(request);
+}
+
+export async function GET(request: NextRequest) {
+  return handleLogout(request);
 }
