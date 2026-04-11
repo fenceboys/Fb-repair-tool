@@ -9,7 +9,7 @@ import { PricingSection } from './PricingSection';
 import { ActionBar } from './ActionBar';
 import { SaveIndicator } from './SaveIndicator';
 import { formatCurrency } from '@/lib/calculations';
-import { supabase } from '@/lib/supabase';
+import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
 interface QuoteEditorProps {
   quoteId: string;
@@ -32,6 +32,7 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
   // Check if user is admin
   useEffect(() => {
     async function checkRole() {
+      const supabase = createBrowserSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: profile } = await supabase
