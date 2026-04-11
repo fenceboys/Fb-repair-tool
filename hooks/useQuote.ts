@@ -156,6 +156,34 @@ export function useQuote(id: string | null) {
     });
   }, [quote, updateQuote]);
 
+  // Mark quote as sent (called when Slack message is sent)
+  const markAsSent = useCallback(async () => {
+    if (!id || !quote) return;
+
+    // Only update if currently in draft status
+    if (quote.status !== 'draft') return;
+
+    try {
+      const { error: updateError } = await supabase
+        .from('repair_quotes')
+        .update({
+          status: 'sent',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setQuote(prev => {
+        if (!prev) return null;
+        return { ...prev, status: 'sent' };
+      });
+    } catch (err) {
+      console.error('Error marking quote as sent:', err);
+    }
+  }, [id, quote]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -179,5 +207,6 @@ export function useQuote(id: string | null) {
     setBaseCost,
     setSellPrice,
     toggleDeposit,
+    markAsSent,
   };
 }

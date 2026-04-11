@@ -27,6 +27,15 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
     return styles[status] || styles.draft;
   };
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      draft: 'Draft',
+      sent: 'Sent to Slack - Needs E-Sign',
+      signed: 'Customer Signed',
+    };
+    return labels[status] || 'Draft';
+  };
+
   const handleDelete = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -48,8 +57,8 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
             </p>
           </div>
           <div className="flex items-center gap-2 ml-2">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusBadge(quote.status)}`}>
-              {quote.status}
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadge(quote.status)}`}>
+              {getStatusLabel(quote.status)}
             </span>
             <button
               onClick={handleDelete}

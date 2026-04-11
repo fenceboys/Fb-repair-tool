@@ -7,6 +7,7 @@ interface QuotePayload {
   address: string;
   city_state?: string;
   quote_price: number;
+  base_cost?: number;
   deposit: number;
   requires_deposit: boolean;
   repair_description?: string;
@@ -104,7 +105,10 @@ export async function POST(request: NextRequest) {
 
     // Build the message for initial_comment
     const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
-    const contactInfo = quote.email || quote.phone;
+
+    // Calculate payout breakdown (75% Colt, 25% FB Margin)
+    const coltPayout = quote.quote_price * 0.75;
+    const fbMargin = quote.quote_price * 0.25;
 
     let messageLines = [
       `:wrench: *New Repair Quote*`,
@@ -126,11 +130,21 @@ export async function POST(request: NextRequest) {
       messageLines.push('', `:memo: *Note:* ${customMessage}`);
     }
 
+    // Add payout breakdown
+    messageLines.push(
+      '',
+      '---',
+      `:moneybag: *Payout Breakdown:*`,
+      `• Colt: ${formatCurrency(coltPayout)}`,
+      `• FB Margin: ${formatCurrency(fbMargin)}`,
+      '---'
+    );
+
     // Add action line based on signature status
     if (quote.is_signed) {
       messageLines.push('', `:white_check_mark: *Signed* - Ready for payment`);
     } else {
-      messageLines.push('', `:pencil2: *Unsigned* - Send for signature via Adobe Acrobat`);
+      messageLines.push('', `:pencil2: *Unsigned* - Download PDF below and send for e-signature using Adobe Acrobat`);
     }
 
     const initialComment = messageLines.join('\n');

@@ -37,14 +37,29 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
               type="tel"
               inputMode="tel"
               value={quote.phone || ''}
-              onChange={(e) => onFieldChange('phone', e.target.value)}
+              onChange={(e) => {
+                // Strip all non-digits
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                // Format as (XXX) XXX-XXXX
+                let formatted = '';
+                if (digits.length > 0) {
+                  formatted = '(' + digits.slice(0, 3);
+                }
+                if (digits.length >= 3) {
+                  formatted += ') ' + digits.slice(3, 6);
+                }
+                if (digits.length >= 6) {
+                  formatted += '-' + digits.slice(6, 10);
+                }
+                onFieldChange('phone', formatted);
+              }}
               placeholder="(555) 123-4567"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -75,19 +90,25 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              City, State
+              City/Town <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={quote.city_state || ''}
-              onChange={(e) => onFieldChange('city_state', e.target.value)}
-              placeholder="Austin, TX"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={(quote.city_state || '').replace(/, ?OH$/i, '')}
+                onChange={(e) => {
+                  const city = e.target.value;
+                  onFieldChange('city_state', city ? `${city}, OH` : '');
+                }}
+                placeholder="Columbus"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              />
+              <span className="text-gray-500 font-medium">OH</span>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Zip
+              Zip <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -102,14 +123,24 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
 
         {/* Repair Description */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Repair Description
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Repair Description <span className="text-red-500">*</span>
+            </label>
+            <span className={`text-xs ${(quote.repair_description?.length || 0) > 850 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+              {quote.repair_description?.length || 0}/850
+            </span>
+          </div>
           <textarea
             value={quote.repair_description || ''}
-            onChange={(e) => onFieldChange('repair_description', e.target.value)}
+            onChange={(e) => {
+              if (e.target.value.length <= 850) {
+                onFieldChange('repair_description', e.target.value);
+              }
+            }}
             placeholder="Describe the repair work to be done..."
-            rows={4}
+            rows={8}
+            maxLength={850}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none"
           />
         </div>

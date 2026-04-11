@@ -102,14 +102,14 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <CustomerSection quote={quote} onFieldChange={updateField} />
+
         <PricingSection
           quote={quote}
           onSetBaseCost={setBaseCost}
           onSetSellPrice={setSellPrice}
           onToggleDeposit={toggleDeposit}
         />
-
-        <CustomerSection quote={quote} onFieldChange={updateField} />
       </main>
 
       {/* Action Bar */}

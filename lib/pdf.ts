@@ -131,8 +131,7 @@ export async function generatePDF(quote: RepairQuote): Promise<Uint8Array> {
   const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
   if (amountDue > 0) {
     const pos = FIELD_POSITIONS.deposit;
-    const label = quote.requires_deposit ? '' : '(Full)';
-    page.drawText(`${formatCurrency(amountDue)} ${label}`.trim(), {
+    page.drawText(formatCurrency(amountDue), {
       x: pos.x,
       y: pos.y,
       size: 16,
