@@ -22,6 +22,7 @@ interface QuoteData {
   base_cost: number;
   status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
   scheduled_date: string | null;
+  portal_closed: boolean;
 }
 
 export default function CustomerViewPage() {
@@ -40,7 +41,7 @@ export default function CustomerViewPage() {
     try {
       const { data, error: fetchError } = await supabase
         .from('repair_quotes')
-        .select('id, client_name, phone, email, address, city_state, repair_description, quote_price, deposit, requires_deposit, client_signature, base_cost, status, scheduled_date')
+        .select('id, client_name, phone, email, address, city_state, repair_description, quote_price, deposit, requires_deposit, client_signature, base_cost, status, scheduled_date, portal_closed')
         .eq('id', quoteId)
         .single();
 
@@ -90,6 +91,23 @@ export default function CustomerViewPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
           <p className="text-red-700">{error || 'Quote not found'}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Block access if portal is closed (unless internal view)
+  if (quote.portal_closed && !isInternal) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">Quote Unavailable</h1>
+          <p className="text-gray-600">This quote is no longer available. Please contact Fence Boys if you have questions.</p>
         </div>
       </div>
     );

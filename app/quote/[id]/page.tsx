@@ -28,6 +28,7 @@ interface QuoteData {
   quote_appointment_date: string | null;
   revision_count: number;
   revised_at: string | null;
+  portal_closed: boolean;
 }
 
 type ScheduleType = 'quote' | 'repair';
@@ -106,6 +107,23 @@ export default function QuoteDetailsPage() {
       setQuote({ ...quote, status: newStatus });
     } catch (err) {
       console.error('Error updating status:', err);
+    }
+  };
+
+  const handlePortalToggle = async () => {
+    if (!quote) return;
+
+    const newValue = !quote.portal_closed;
+    try {
+      const { error: updateError } = await supabase
+        .from('repair_quotes')
+        .update({ portal_closed: newValue, updated_at: new Date().toISOString() })
+        .eq('id', quoteId);
+
+      if (updateError) throw updateError;
+      setQuote({ ...quote, portal_closed: newValue });
+    } catch (err) {
+      console.error('Error toggling portal:', err);
     }
   };
 
@@ -294,7 +312,6 @@ export default function QuoteDetailsPage() {
               </svg>
               Dashboard
             </Link>
-            <StatusBadge status={quote.status} onChange={handleStatusChange} />
           </div>
         </div>
       </header>
@@ -347,6 +364,33 @@ export default function QuoteDetailsPage() {
               <p className="font-medium text-gray-900">{quote.email || '—'}</p>
             </div>
           </div>
+
+          {/* Status & Portal Access */}
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Status:</span>
+              <StatusBadge status={quote.status} onChange={handleStatusChange} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Customer Portal:</span>
+              <button
+                onClick={handlePortalToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  quote.portal_closed ? 'bg-red-500' : 'bg-green-500'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    quote.portal_closed ? 'translate-x-1' : 'translate-x-6'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm font-medium ${quote.portal_closed ? 'text-red-600' : 'text-green-600'}`}>
+                {quote.portal_closed ? 'Closed' : 'Open'}
+              </span>
+            </div>
+          </div>
+
           {quote.repair_description && (
             <div className="mt-4 text-sm">
               <p className="text-gray-500">Repair Description</p>

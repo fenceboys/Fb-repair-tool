@@ -163,6 +163,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     quote_appointment_date: null,
     revision_count: 0,
     revised_at: null,
+    portal_closed: false,
   };
 
   return (
