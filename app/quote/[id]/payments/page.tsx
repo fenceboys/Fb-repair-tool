@@ -88,6 +88,10 @@ export default function PaymentLedgerPage() {
   const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
   const isPaid = quote.status === 'paid';
 
+  // Calculate misc the same way as PricingSection (sell price - min price with 25% margin)
+  const minPrice = quote.base_cost > 0 ? Math.round((quote.base_cost / 0.75) * 100) / 100 : 0;
+  const calculatedMisc = quote.quote_price - minPrice;
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
@@ -166,27 +170,27 @@ export default function PaymentLedgerPage() {
 
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Colt&apos;s Cost</span>
-              <span className="font-medium">{formatCurrency(quote.base_cost)}</span>
+              <span className="text-gray-600">Colt (75%)</span>
+              <span className="font-medium">{formatCurrency(quote.quote_price * 0.75)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">FB Margin (25%)</span>
               <span className="font-medium">{formatCurrency(quote.quote_price * 0.25)}</span>
             </div>
-            {quote.misc !== 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Misc Adjustment</span>
-                <span className={`font-medium ${quote.misc >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {quote.misc >= 0 ? '+' : ''}{formatCurrency(quote.misc)}
-                </span>
-              </div>
-            )}
             <div className="border-t border-gray-200 pt-3 mt-3">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-900">Quote Total</span>
                 <span className="font-bold text-gray-900">{formatCurrency(quote.quote_price)}</span>
               </div>
             </div>
+            {calculatedMisc !== 0 && (
+              <div className="flex justify-between items-center pt-2 text-sm">
+                <span className="text-gray-500">Misc (above min price)</span>
+                <span className={`${calculatedMisc >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {calculatedMisc >= 0 ? '+' : ''}{formatCurrency(calculatedMisc)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
