@@ -8,6 +8,7 @@ import { CustomerSection } from './CustomerSection';
 import { PricingSection } from './PricingSection';
 import { ActionBar } from './ActionBar';
 import { SaveIndicator } from './SaveIndicator';
+import { QuoteSentView } from './QuoteSentView';
 import { formatCurrency } from '@/lib/calculations';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
@@ -27,6 +28,7 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
     setBaseCost,
     setSellPrice,
     toggleDeposit,
+    refetch,
   } = useQuote(quoteId);
 
   // Check if user is admin
@@ -68,6 +70,16 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
         </div>
       </div>
     );
+  }
+
+  // Show simplified info view after proposal is sent (for Colt)
+  const isSent = quote.status === 'awaiting_signature' ||
+                 quote.status === 'awaiting_payment' ||
+                 quote.status === 'paid' ||
+                 quote.status === 'repair_scheduled';
+
+  if (isSent && !isAdmin) {
+    return <QuoteSentView quote={quote} />;
   }
 
   return (
@@ -134,6 +146,35 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
         </div>
       </header>
 
+      {/* Quote Appointment Banner */}
+      {quote.status === 'quote_scheduled' && quote.quote_appointment_date && (
+        <div className="bg-blue-50 border-b border-blue-200">
+          <div className="max-w-2xl mx-auto px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-900">Quote Appointment</p>
+                <p className="text-blue-700">
+                  {new Date(quote.quote_appointment_date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    month: 'long',
+                    day: 'numeric'
+                  })} at {new Date(quote.quote_appointment_date).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
         <CustomerSection quote={quote} onFieldChange={updateField} />
@@ -147,7 +188,7 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
       </main>
 
       {/* Action Bar */}
-      <ActionBar quote={quote} />
+      <ActionBar quote={quote} onUpdate={refetch} />
     </div>
   );
 }

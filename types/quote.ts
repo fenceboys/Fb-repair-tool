@@ -33,6 +33,10 @@ export interface RepairQuote {
   client_signature: string | null;
   salesperson_signature: string | null;
   notes: QuoteNote[];
+  scheduled_date: string | null;
+  quote_appointment_date: string | null;
+  revision_count: number;
+  revised_at: string | null;
 }
 
 export type RepairQuoteInsert = Omit<RepairQuote, 'id' | 'created_at' | 'updated_at'>;

@@ -156,6 +156,24 @@ export function useQuote(id: string | null) {
     });
   }, [quote, updateQuote]);
 
+  // Refetch quote from database
+  const refetch = useCallback(async () => {
+    if (!id) return;
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('repair_quotes')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      setQuote(data);
+    } catch (err) {
+      console.error('Error refetching quote:', err);
+    }
+  }, [id]);
+
   // Mark quote as sent (called when Slack message is sent)
   const markAsSent = useCallback(async () => {
     if (!id || !quote) return;
@@ -208,5 +226,6 @@ export function useQuote(id: string | null) {
     setSellPrice,
     toggleDeposit,
     markAsSent,
+    refetch,
   };
 }

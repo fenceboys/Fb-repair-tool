@@ -159,6 +159,10 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     client_signature: quote.client_signature,
     salesperson_signature: null,
     notes: [],
+    scheduled_date: null,
+    quote_appointment_date: null,
+    revision_count: 0,
+    revised_at: null,
   };
 
   return (
