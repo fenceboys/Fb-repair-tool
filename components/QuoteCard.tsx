@@ -23,6 +23,7 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
       draft: 'bg-amber-100 text-amber-700',
       sent: 'bg-blue-100 text-blue-700',
       signed: 'bg-green-100 text-green-700',
+      paid: 'bg-purple-100 text-purple-700',
     };
     return styles[status] || styles.draft;
   };
@@ -32,6 +33,7 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
       draft: 'Draft',
       sent: 'Sent to Slack - Needs E-Sign',
       signed: 'Customer Signed',
+      paid: 'Paid',
     };
     return labels[status] || 'Draft';
   };

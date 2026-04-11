@@ -21,7 +21,7 @@ export interface RepairQuote {
   misc: number;
   deposit: number;
   requires_deposit: boolean;
-  status: 'draft' | 'sent' | 'signed';
+  status: 'draft' | 'sent' | 'signed' | 'paid';
   pdf_url: string | null;
   signed_copy_url: string | null;
   client_signature: string | null;

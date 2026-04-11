@@ -20,7 +20,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'draft' | 'sent' | 'signed';
+  status: 'draft' | 'sent' | 'signed' | 'paid';
 }
 
 export default function CustomerViewPage() {
@@ -64,9 +64,16 @@ export default function CustomerViewPage() {
     fetchQuote();
   };
 
-  const handlePaymentComplete = () => {
+  const handlePaymentComplete = async () => {
+    // Update status to 'paid' in database
+    await supabase
+      .from('repair_quotes')
+      .update({ status: 'paid', updated_at: new Date().toISOString() })
+      .eq('id', quoteId);
+
     setShowPayment(false);
     setPaymentComplete(true);
+    fetchQuote(); // Refresh to get updated status
   };
 
   if (loading) {

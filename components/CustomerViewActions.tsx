@@ -21,7 +21,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'draft' | 'sent' | 'signed';
+  status: 'draft' | 'sent' | 'signed' | 'paid';
 }
 
 interface CustomerViewActionsProps {
