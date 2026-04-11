@@ -20,7 +20,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'draft' | 'sent' | 'signed' | 'paid';
+  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
 }
 
 export default function CustomerViewPage() {

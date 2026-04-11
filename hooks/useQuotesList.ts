@@ -98,6 +98,25 @@ export function useQuotesList() {
     }
   };
 
+  const updateStatus = async (id: string, status: RepairQuote['status']): Promise<boolean> => {
+    try {
+      const { error: updateError } = await supabase
+        .from('repair_quotes')
+        .update({ status })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setQuotes(prev => prev.map(q => q.id === id ? { ...q, status } : q));
+      return true;
+    } catch (err) {
+      console.error('Error updating quote status:', err);
+      setError('Failed to update status');
+      return false;
+    }
+  };
+
   return {
     quotes,
     loading,
@@ -106,6 +125,7 @@ export function useQuotesList() {
     setSearchQuery,
     createQuote,
     deleteQuote,
+    updateStatus,
     refresh: fetchQuotes,
   };
 }

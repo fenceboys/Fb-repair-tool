@@ -19,7 +19,7 @@ export function QuotesList() {
   const handleNewQuote = async () => {
     const newId = await createQuote();
     if (newId) {
-      router.push(`/quote/${newId}`);
+      router.push(`/quote/${newId}/edit`);
     }
   };
 
@@ -37,12 +37,25 @@ export function QuotesList() {
               />
               <h1 className="text-xl font-bold text-gray-900">Repair Quotes</h1>
             </div>
-            <button
-              onClick={handleNewQuote}
-              className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
-            >
-              + New Quote
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleNewQuote}
+                className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+              >
+                + New Quote
+              </button>
+              <form action="/auth/logout" method="POST">
+                <button
+                  type="submit"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Sign out"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
+              </form>
+            </div>
           </div>
 
           {/* Search */}

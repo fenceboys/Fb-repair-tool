@@ -8,9 +8,19 @@ interface CustomerSectionProps {
 }
 
 export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) {
+  // Lock editing when quote has been sent for signature
+  const isLocked = quote.status !== 'draft' && quote.status !== 'quote_scheduled';
+
   return (
     <section className="bg-white rounded-lg border border-gray-200 p-4">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Customer Information</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Customer Information</h2>
+        {isLocked && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+            Locked
+          </span>
+        )}
+      </div>
 
       <div className="space-y-4">
         {/* Client Name */}
@@ -23,7 +33,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
             value={quote.client_name || ''}
             onChange={(e) => onFieldChange('client_name', e.target.value)}
             placeholder="John Smith"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+            disabled={isLocked}
+            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
           />
         </div>
 
@@ -54,7 +65,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
                 onFieldChange('phone', formatted);
               }}
               placeholder="(555) 123-4567"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              disabled={isLocked}
+              className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
           <div>
@@ -67,7 +79,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
               value={quote.email || ''}
               onChange={(e) => onFieldChange('email', e.target.value)}
               placeholder="john@email.com"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              disabled={isLocked}
+              className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
@@ -82,7 +95,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
             value={quote.address || ''}
             onChange={(e) => onFieldChange('address', e.target.value)}
             placeholder="123 Main Street"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+            disabled={isLocked}
+            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
           />
         </div>
 
@@ -101,7 +115,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
                   onFieldChange('city_state', city ? `${city}, OH` : '');
                 }}
                 placeholder="Columbus"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                disabled={isLocked}
+                className={`flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
               />
               <span className="text-gray-500 font-medium">OH</span>
             </div>
@@ -116,7 +131,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
               value={quote.zip || ''}
               onChange={(e) => onFieldChange('zip', e.target.value)}
               placeholder="78701"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+              disabled={isLocked}
+              className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
             />
           </div>
         </div>
@@ -127,9 +143,11 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
             <label className="block text-sm font-medium text-gray-700">
               Repair Description <span className="text-red-500">*</span>
             </label>
-            <span className={`text-xs ${(quote.repair_description?.length || 0) > 850 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-              {quote.repair_description?.length || 0}/850
-            </span>
+            {!isLocked && (
+              <span className={`text-xs ${(quote.repair_description?.length || 0) > 850 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                {quote.repair_description?.length || 0}/850
+              </span>
+            )}
           </div>
           <textarea
             value={quote.repair_description || ''}
@@ -141,7 +159,8 @@ export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) 
             placeholder="Describe the repair work to be done..."
             rows={8}
             maxLength={850}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none"
+            disabled={isLocked}
+            className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
           />
         </div>
       </div>

@@ -16,8 +16,8 @@ export function PricingSection({
   onSetSellPrice,
   onToggleDeposit,
 }: PricingSectionProps) {
-  // Lock editing when sent or signed
-  const isLocked = quote.status === 'sent' || quote.status === 'signed';
+  // Lock editing when awaiting signature or later
+  const isLocked = quote.status === 'awaiting_signature' || quote.status === 'awaiting_payment' || quote.status === 'paid' || quote.status === 'repair_scheduled';
 
   // Calculate minimum price with 25% margin (cost / 0.75)
   const baseCost = quote.base_cost || 0;

@@ -11,7 +11,7 @@ interface QuotePayload {
   deposit: number;
   requires_deposit: boolean;
   repair_description?: string;
-  status: 'draft' | 'sent' | 'signed' | 'paid';
+  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
   link_sent?: boolean; // true if customer has received the link
 }
 
@@ -114,12 +114,16 @@ export async function POST(request: NextRequest) {
     // Determine status display
     const getStatusLine = () => {
       switch (quote.status) {
+        case 'repair_scheduled':
+          return `:calendar: *REPAIR SCHEDULED* - Work scheduled`;
         case 'paid':
           return `:white_check_mark: *PAID* - Complete`;
-        case 'signed':
+        case 'awaiting_payment':
           return `:pencil: *SIGNED* - Awaiting Payment (${formatCurrency(amountDue)})`;
-        case 'sent':
+        case 'awaiting_signature':
           return `:envelope_with_arrow: *LINK SENT* - Awaiting Customer Signature`;
+        case 'quote_scheduled':
+          return `:calendar: *QUOTE SCHEDULED* - Quote appointment scheduled`;
         case 'draft':
         default:
           if (quote.link_sent) {

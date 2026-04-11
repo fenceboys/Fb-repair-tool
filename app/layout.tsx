@@ -8,12 +8,27 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://repair.fenceboys.com"),
   title: "Fence Boys Repair Tool",
   description: "Price repair jobs and generate contracts",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "FB Repairs",
+  },
+  openGraph: {
+    title: "Fence Boys Repair Tool",
+    description: "Price repair jobs and generate contracts",
+    siteName: "Fence Boys",
+    images: [
+      {
+        url: "/fence-boys-logo.jpg",
+        width: 400,
+        height: 400,
+        alt: "Fence Boys",
+      },
+    ],
+    type: "website",
   },
 };
 

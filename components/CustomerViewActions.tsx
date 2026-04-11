@@ -21,7 +21,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'draft' | 'sent' | 'signed' | 'paid';
+  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
 }
 
 interface CustomerViewActionsProps {
@@ -53,11 +53,11 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     // Pre-fill message
     const message = `Hi ${quote.client_name?.split(' ')[0] || 'there'}, here's your Fence Boys repair quote. You can view and sign it here: ${link}`;
 
-    // Mark as 'sent' if currently draft
-    if (quote.status === 'draft') {
+    // Mark as 'awaiting_signature' if currently draft or quote_scheduled
+    if (quote.status === 'draft' || quote.status === 'quote_scheduled') {
       await supabase
         .from('repair_quotes')
-        .update({ status: 'sent', updated_at: new Date().toISOString() })
+        .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
         .eq('id', quote.id);
     }
 
@@ -107,7 +107,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
             requires_deposit: freshQuote.requires_deposit ?? false,
             repair_description: freshQuote.repair_description,
             status: freshQuote.status || 'draft',
-            link_sent: freshQuote.status === 'sent' || freshQuote.status === 'signed' || freshQuote.status === 'paid',
+            link_sent: freshQuote.status === 'awaiting_signature' || freshQuote.status === 'awaiting_payment' || freshQuote.status === 'paid' || freshQuote.status === 'repair_scheduled',
           },
           pdfBase64: base64,
           filename,
@@ -120,11 +120,11 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
         throw new Error(errorData.error || 'Failed to send to Slack');
       }
 
-      // Update status to 'sent' if not already signed
-      if (freshQuote.status === 'draft') {
+      // Update status to 'awaiting_signature' if still in draft
+      if (freshQuote.status === 'draft' || freshQuote.status === 'quote_scheduled') {
         await supabase
           .from('repair_quotes')
-          .update({ status: 'sent', updated_at: new Date().toISOString() })
+          .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
           .eq('id', quote.id);
       }
 

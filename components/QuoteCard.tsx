@@ -20,20 +20,24 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
+      quote_scheduled: 'bg-gray-100 text-gray-700',
       draft: 'bg-amber-100 text-amber-700',
-      sent: 'bg-blue-100 text-blue-700',
-      signed: 'bg-green-100 text-green-700',
+      awaiting_signature: 'bg-blue-100 text-blue-700',
+      awaiting_payment: 'bg-green-100 text-green-700',
       paid: 'bg-purple-100 text-purple-700',
+      repair_scheduled: 'bg-teal-100 text-teal-700',
     };
     return styles[status] || styles.draft;
   };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
+      quote_scheduled: 'Quote Scheduled',
       draft: 'Draft',
-      sent: 'Sent to Slack - Needs E-Sign',
-      signed: 'Customer Signed',
+      awaiting_signature: 'Awaiting Signature',
+      awaiting_payment: 'Awaiting Payment',
       paid: 'Paid',
+      repair_scheduled: 'Repair Scheduled',
     };
     return labels[status] || 'Draft';
   };
@@ -47,7 +51,7 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
   };
 
   return (
-    <Link href={`/quote/${quote.id}`}>
+    <Link href={`/quote/${quote.id}/edit`}>
       <div className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-400 hover:shadow-md transition-all active:bg-gray-50">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">

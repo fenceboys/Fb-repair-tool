@@ -50,7 +50,7 @@ export function InlineSignature({ quoteId, onSignComplete }: InlineSignatureProp
         .from('repair_quotes')
         .update({
           client_signature: signatureDataUrl,
-          status: 'signed',
+          status: 'awaiting_payment',
           updated_at: new Date().toISOString(),
         })
         .eq('id', quoteId);

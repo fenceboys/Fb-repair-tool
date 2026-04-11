@@ -160,14 +160,14 @@ export function useQuote(id: string | null) {
   const markAsSent = useCallback(async () => {
     if (!id || !quote) return;
 
-    // Only update if currently in draft status
-    if (quote.status !== 'draft') return;
+    // Only update if currently in draft or quote_scheduled status
+    if (quote.status !== 'draft' && quote.status !== 'quote_scheduled') return;
 
     try {
       const { error: updateError } = await supabase
         .from('repair_quotes')
         .update({
-          status: 'sent',
+          status: 'awaiting_signature',
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
@@ -177,7 +177,7 @@ export function useQuote(id: string | null) {
       // Update local state
       setQuote(prev => {
         if (!prev) return null;
-        return { ...prev, status: 'sent' };
+        return { ...prev, status: 'awaiting_signature' };
       });
     } catch (err) {
       console.error('Error marking quote as sent:', err);
