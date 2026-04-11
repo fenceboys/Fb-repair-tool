@@ -170,7 +170,7 @@ export default function PaymentLedgerPage() {
 
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Colt (75%)</span>
+              <span className="text-gray-600">Colt</span>
               <span className="font-medium">{formatCurrency(quote.quote_price * 0.75)}</span>
             </div>
             <div className="flex justify-between items-center">
