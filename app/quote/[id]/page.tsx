@@ -375,19 +375,17 @@ export default function QuoteDetailsPage() {
               <span className="text-sm text-gray-500">Customer Portal:</span>
               <button
                 onClick={handlePortalToggle}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  quote.portal_closed ? 'bg-red-500' : 'bg-green-500'
+                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
+                  quote.portal_closed
+                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                 }`}
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    quote.portal_closed ? 'translate-x-1' : 'translate-x-6'
-                  }`}
-                />
-              </button>
-              <span className={`text-sm font-medium ${quote.portal_closed ? 'text-red-600' : 'text-green-600'}`}>
                 {quote.portal_closed ? 'Closed' : 'Open'}
-              </span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                </svg>
+              </button>
             </div>
           </div>
 
