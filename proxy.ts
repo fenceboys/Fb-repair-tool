@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -42,7 +42,7 @@ export async function middleware(request: NextRequest) {
   // Public routes - no auth required
   const publicRoutes = ['/login', '/auth/callback'];
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
-  const isCustomerPortal = pathname.startsWith('/customer/');
+  const isCustomerPortal = pathname.startsWith('/customer/') || pathname.startsWith('/sign/');
 
   // Allow public routes and customer portal
   if (isPublicRoute || isCustomerPortal) {
