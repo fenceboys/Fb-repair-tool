@@ -217,6 +217,9 @@ export default function CustomerViewPage() {
         isOpen={showPayment}
         onClose={() => setShowPayment(false)}
         amount={amountDue}
+        quoteId={quote.id}
+        customerName={quote.client_name}
+        customerEmail={quote.email}
         onPaymentComplete={handlePaymentComplete}
       />
     </div>
