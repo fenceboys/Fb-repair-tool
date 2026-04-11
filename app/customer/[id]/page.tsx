@@ -95,6 +95,7 @@ export default function CustomerViewPage() {
   }
 
   const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
+  const isPaid = quote.status === 'paid' || paymentComplete;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -182,7 +183,7 @@ export default function CustomerViewPage() {
               <div>
                 <p className="font-semibold text-green-800">Contract Signed</p>
                 <p className="text-sm text-green-600">
-                  {paymentComplete
+                  {isPaid
                     ? 'Payment received. Thank you!'
                     : 'Ready to pay your deposit.'}
                 </p>
@@ -190,7 +191,7 @@ export default function CustomerViewPage() {
             </div>
 
             {/* Pay Now Button - shows after signing, hides after payment */}
-            {!paymentComplete && (
+            {!isPaid && (
               <button
                 onClick={() => setShowPayment(true)}
                 className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
@@ -203,7 +204,7 @@ export default function CustomerViewPage() {
             )}
 
             {/* Payment Success State */}
-            {paymentComplete && (
+            {isPaid && (
               <div className="mt-4 p-3 bg-green-100 rounded-lg text-center">
                 <p className="text-green-800 font-medium">We'll be in touch to schedule your repair!</p>
               </div>
