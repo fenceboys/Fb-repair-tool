@@ -11,7 +11,8 @@ interface QuotePayload {
   deposit: number;
   requires_deposit: boolean;
   repair_description?: string;
-  is_signed?: boolean;
+  status: 'draft' | 'sent' | 'signed' | 'paid';
+  link_sent?: boolean; // true if customer has received the link
 }
 
 interface SlackUploadRequest {
@@ -110,10 +111,29 @@ export async function POST(request: NextRequest) {
     const coltPayout = quote.quote_price * 0.75;
     const fbMargin = quote.quote_price * 0.25;
 
+    // Determine status display
+    const getStatusLine = () => {
+      switch (quote.status) {
+        case 'paid':
+          return `:white_check_mark: *PAID* - Complete`;
+        case 'signed':
+          return `:pencil: *SIGNED* - Awaiting Payment (${formatCurrency(amountDue)})`;
+        case 'sent':
+          return `:envelope_with_arrow: *LINK SENT* - Awaiting Customer Signature`;
+        case 'draft':
+        default:
+          if (quote.link_sent) {
+            return `:envelope_with_arrow: *LINK SENT* - Awaiting Customer Signature`;
+          }
+          return `:new: *NEW QUOTE* - Send link to customer`;
+      }
+    };
+
     let messageLines = [
-      `:wrench: *New Repair Quote*`,
+      `:wrench: *Repair Quote - ${quote.client_name}*`,
       '',
-      `*Customer:* ${quote.client_name}`,
+      getStatusLine(),
+      '',
       `*Phone:* ${quote.phone}`,
       `*Address:* ${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
       `*Quote Price:* ${formatCurrency(quote.quote_price)}`,
@@ -139,13 +159,6 @@ export async function POST(request: NextRequest) {
       `• FB Margin: ${formatCurrency(fbMargin)}`,
       '---'
     );
-
-    // Add action line based on signature status
-    if (quote.is_signed) {
-      messageLines.push('', `:white_check_mark: *Signed* - Ready for payment`);
-    } else {
-      messageLines.push('', `:pencil2: *Unsigned* - Download PDF below and send for e-signature using Adobe Acrobat`);
-    }
 
     const initialComment = messageLines.join('\n');
 

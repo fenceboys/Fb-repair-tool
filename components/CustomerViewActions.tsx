@@ -39,7 +39,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
 
   const isSigned = !!quote.client_signature;
 
-  const handleSendSMS = () => {
+  const handleSendSMS = async () => {
     // Get the customer's phone number (strip formatting for SMS)
     const phoneDigits = (quote.phone || '').replace(/\D/g, '');
     if (!phoneDigits) {
@@ -52,6 +52,14 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
 
     // Pre-fill message
     const message = `Hi ${quote.client_name?.split(' ')[0] || 'there'}, here's your Fence Boys repair quote. You can view and sign it here: ${link}`;
+
+    // Mark as 'sent' if currently draft
+    if (quote.status === 'draft') {
+      await supabase
+        .from('repair_quotes')
+        .update({ status: 'sent', updated_at: new Date().toISOString() })
+        .eq('id', quote.id);
+    }
 
     // Open native SMS app
     window.location.href = `sms:${phoneDigits}&body=${encodeURIComponent(message)}`;
@@ -98,7 +106,8 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
             deposit: freshQuote.deposit,
             requires_deposit: freshQuote.requires_deposit ?? false,
             repair_description: freshQuote.repair_description,
-            is_signed: !!freshQuote.client_signature,
+            status: freshQuote.status || 'draft',
+            link_sent: freshQuote.status === 'sent' || freshQuote.status === 'signed' || freshQuote.status === 'paid',
           },
           pdfBase64: base64,
           filename,
