@@ -96,7 +96,20 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
               <span>Back</span>
             </button>
 
-            <SaveIndicator status={saveStatus} />
+            <div className="flex items-center gap-4">
+              <SaveIndicator status={saveStatus} />
+              {isAdmin && (
+                <Link
+                  href="/dashboard"
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
+                >
+                  <span>Admin Dashboard</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Quote Summary */}
@@ -110,17 +123,6 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
               </p>
             </div>
             <div className="text-right">
-              {isAdmin && (
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium mb-1"
-                >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                  </svg>
-                  Admin Dashboard
-                </Link>
-              )}
               <p className="text-2xl font-bold text-gray-900">
                 {quote.quote_price > 0 ? formatCurrency(quote.quote_price) : '—'}
               </p>
