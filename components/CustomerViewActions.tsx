@@ -158,6 +158,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     signed_copy_url: null,
     client_signature: quote.client_signature,
     salesperson_signature: null,
+    notes: [],
   };
 
   return (
