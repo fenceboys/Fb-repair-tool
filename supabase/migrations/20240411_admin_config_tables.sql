@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS app_config (
   portal_closed_message text DEFAULT 'This quote is no longer available. Please contact Fence Boys if you have questions.',
   dashboard_title text DEFAULT 'Repair Quotes Dashboard',
   deposit_percentage integer DEFAULT 50,
-  markup_percentage integer DEFAULT 33,
+  markup_percentage integer DEFAULT 25,
   payout_colt_percentage integer DEFAULT 75,
   payout_fb_percentage integer DEFAULT 25,
   default_salesperson_name text DEFAULT 'Colt Stonerook'

@@ -20,7 +20,7 @@ INSERT INTO app_config (
   'This quote is no longer available. Please contact Fence Boys if you have questions.',
   'Repair Quotes Dashboard',
   50,
-  33,
+  25,
   75,
   25,
   'Colt Stonerook'
