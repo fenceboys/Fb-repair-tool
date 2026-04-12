@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { generatePDFBlob, generateFilename } from '@/lib/pdf';
 import { PDFPreviewModal } from './PDFPreviewModal';
 import { SlackMessageModal } from './SlackMessageModal';
+import { SendProposalModal } from './SendProposalModal';
 import { InlineSignature } from './InlineSignature';
 import { supabase } from '@/lib/supabase';
 import type { RepairQuote } from '@/types/quote';
@@ -34,56 +35,70 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
   const [showSignature, setShowSignature] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showSlackModal, setShowSlackModal] = useState(false);
+  const [showSendProposalModal, setShowSendProposalModal] = useState(false);
   const [slackLoading, setSlackLoading] = useState(false);
   const [slackSent, setSlackSent] = useState(false);
+  const [sendingProposal, setSendingProposal] = useState(false);
+  const [proposalSent, setProposalSent] = useState(false);
 
-  const isSigned = !!quote.client_signature;
   const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled';
-  const canSign = quote.status === 'awaiting_signature' && !isSigned;
+  // Status is the source of truth - ignore old signatures
+  const canSign = quote.status === 'awaiting_signature';
+  // Show send options only for draft/quote_scheduled
+  const canSendProposal = quote.status === 'draft' || quote.status === 'quote_scheduled';
 
-  const handleSendSMS = async () => {
-    // Get the customer's phone number (strip formatting for SMS)
-    const phoneDigits = (quote.phone || '').replace(/\D/g, '');
-    if (!phoneDigits) {
-      alert('No phone number available');
-      return;
+  const handleSendProposal = async (methods: { sms: boolean; email: boolean }) => {
+    setSendingProposal(true);
+    try {
+      const link = `${window.location.origin}/customer/${quote.id}`;
+
+      // For now, use native SMS (will be replaced with Quo API later)
+      if (methods.sms) {
+        const phoneDigits = (quote.phone || '').replace(/\D/g, '');
+        const message = `Hi ${quote.client_name?.split(' ')[0] || 'there'}, here's your Fence Boys repair quote. You can view and sign it here: ${link}`;
+
+        // Open native SMS app
+        window.open(`sms:${phoneDigits}&body=${encodeURIComponent(message)}`, '_blank');
+      }
+
+      // Email will be added later with Google API
+      if (methods.email) {
+        // Placeholder for email sending
+        console.log('Email sending not yet implemented');
+      }
+
+      // Update status to awaiting_signature
+      if (quote.status === 'draft' || quote.status === 'quote_scheduled') {
+        await supabase
+          .from('repair_quotes')
+          .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
+          .eq('id', quote.id);
+      }
+
+      // Send full Slack notification when proposal is sent
+      await sendFullSlackNotification();
+
+      setShowSendProposalModal(false);
+      setProposalSent(true);
+      setTimeout(() => setProposalSent(false), 3000);
+    } finally {
+      setSendingProposal(false);
     }
-
-    // Build the link to this page
-    const link = `${window.location.origin}/customer/${quote.id}`;
-
-    // Pre-fill message
-    const message = `Hi ${quote.client_name?.split(' ')[0] || 'there'}, here's your Fence Boys repair quote. You can view and sign it here: ${link}`;
-
-    // Mark as 'awaiting_signature' if currently draft or quote_scheduled
-    if (quote.status === 'draft' || quote.status === 'quote_scheduled') {
-      await supabase
-        .from('repair_quotes')
-        .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
-        .eq('id', quote.id);
-    }
-
-    // Open native SMS app
-    window.location.href = `sms:${phoneDigits}&body=${encodeURIComponent(message)}`;
   };
 
-  const handleSendToSlack = async (customMessage: string) => {
-    setSlackLoading(true);
+  const sendFullSlackNotification = async () => {
     try {
-      // Fetch fresh quote data to get latest signature
       const { data: freshQuote } = await supabase
         .from('repair_quotes')
         .select('*')
         .eq('id', quote.id)
         .single();
 
-      if (!freshQuote) throw new Error('Quote not found');
+      if (!freshQuote) return;
 
-      // Generate PDF blob
+      // Generate PDF
       const pdfBlob = await generatePDFBlob(freshQuote as RepairQuote);
       const filename = generateFilename(freshQuote as RepairQuote);
-
-      // Convert PDF blob to base64
       const arrayBuffer = await pdfBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
       let binary = '';
@@ -92,8 +107,8 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
       }
       const base64 = btoa(binary);
 
-      // Send directly to Slack API with file attachment
-      const response = await fetch('/api/slack', {
+      // Send full notification to Slack
+      await fetch('/api/slack', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,26 +123,43 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
             deposit: freshQuote.deposit,
             requires_deposit: freshQuote.requires_deposit ?? false,
             repair_description: freshQuote.repair_description,
-            status: freshQuote.status || 'draft',
-            link_sent: freshQuote.status === 'awaiting_signature' || freshQuote.status === 'awaiting_payment' || freshQuote.status === 'paid' || freshQuote.status === 'repair_scheduled',
+            status: 'awaiting_signature',
+            link_sent: true,
           },
           pdfBase64: base64,
           filename,
+          customMessage: 'Proposal sent to customer',
+        }),
+      });
+    } catch (err) {
+      console.error('Error sending Slack notification:', err);
+    }
+  };
+
+  // Simplified Slack - just sends basic contact info with custom message
+  const handleSendToSlack = async (customMessage: string) => {
+    setSlackLoading(true);
+    try {
+      // Send just basic contact info to Slack (no PDF, no full quote details)
+      const response = await fetch('/api/slack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quote: {
+            client_name: quote.client_name,
+            phone: quote.phone,
+            email: quote.email,
+            address: quote.address,
+            city_state: quote.city_state,
+          },
           customMessage,
+          basicInfoOnly: true, // Flag to indicate simplified message
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to send to Slack');
-      }
-
-      // Update status to 'awaiting_signature' if still in draft
-      if (freshQuote.status === 'draft' || freshQuote.status === 'quote_scheduled') {
-        await supabase
-          .from('repair_quotes')
-          .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
-          .eq('id', quote.id);
       }
 
       setSlackSent(true);
@@ -171,7 +203,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
   return (
     <>
       {/* Inline Signature Section - appears above the action bar when active */}
-      {showSignature && !isSigned && (
+      {showSignature && canSign && (
         <div className="fixed inset-0 z-40 bg-black/50 flex items-end sm:items-center justify-center">
           <div className="bg-gray-50 w-full sm:max-w-lg sm:rounded-2xl max-h-[80vh] overflow-y-auto">
             <div className="p-4">
@@ -198,60 +230,14 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
         </div>
       )}
 
-      {/* Action Bar - 2x2 grid for internal, sticky horizontal for customer */}
+      {/* Action Bar - for internal (Colt's view) */}
       {isInternal ? (
         <div className="max-w-lg mx-auto px-4 pb-6">
-          <div className="grid grid-cols-2 gap-3">
-            {/* Text to Customer Button - hidden if signed */}
-            {!isSigned && (
-              <button
-                onClick={handleSendSMS}
-                className="flex items-center justify-center gap-2 px-4 py-4 font-medium rounded-lg transition-colors bg-green-600 text-white hover:bg-green-700 active:bg-green-800"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-                <span>Text</span>
-              </button>
-            )}
-
-            {/* Sign In-Person Button - hidden if signed */}
-            {!isSigned && (
-              <button
-                onClick={() => setShowSignature(true)}
-                className="flex items-center justify-center gap-2 px-4 py-4 font-medium rounded-lg transition-colors bg-gray-600 text-white hover:bg-gray-700 active:bg-gray-800"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                  />
-                </svg>
-                <span>Customer Sign</span>
-              </button>
-            )}
-
-            {/* View PDF Button */}
+          <div className="space-y-3">
+            {/* Review PDF Button - at the top */}
             <button
               onClick={() => setShowPDFPreview(true)}
-              className="flex items-center justify-center gap-2 px-4 py-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 active:bg-red-800 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors border border-gray-300"
             >
               <svg
                 className="w-5 h-5"
@@ -272,40 +258,60 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
                   d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                 />
               </svg>
-              <span>View PDF</span>
+              <span>Review PDF</span>
             </button>
 
-            {/* Slack Button */}
-            <button
-              onClick={() => setShowSlackModal(true)}
-              disabled={slackLoading || slackSent}
-              className={`flex items-center justify-center gap-2 px-4 py-4 font-medium rounded-lg transition-colors ${
-                slackSent
-                  ? 'bg-green-600 text-white'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-            >
-              {slackSent ? (
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
-                </svg>
-              )}
-              <span>{slackSent ? 'Sent!' : 'Slack'}</span>
-            </button>
+            {/* Send Proposal + Slack row */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Send Proposal Button */}
+              <button
+                onClick={() => setShowSendProposalModal(true)}
+                disabled={proposalSent}
+                className={`flex items-center justify-center gap-2 px-4 py-4 font-medium rounded-lg transition-colors ${
+                  proposalSent
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+                }`}
+              >
+                {proposalSent ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Sent!</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>Send Proposal</span>
+                  </>
+                )}
+              </button>
+
+              {/* Slack Button */}
+              <button
+                onClick={() => setShowSlackModal(true)}
+                disabled={slackLoading || slackSent}
+                className={`flex items-center justify-center gap-2 px-4 py-4 font-medium rounded-lg transition-colors ${
+                  slackSent
+                    ? 'bg-green-600 text-white'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                {slackSent ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
+                  </svg>
+                )}
+                <span>{slackSent ? 'Sent!' : 'Slack'}</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -375,6 +381,16 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
         onClose={() => setShowSlackModal(false)}
         onSend={handleSendToSlack}
         loading={slackLoading}
+      />
+
+      <SendProposalModal
+        isOpen={showSendProposalModal}
+        onClose={() => setShowSendProposalModal(false)}
+        onSend={handleSendProposal}
+        customerName={quote.client_name}
+        customerPhone={quote.phone}
+        customerEmail={quote.email}
+        loading={sendingProposal}
       />
     </>
   );

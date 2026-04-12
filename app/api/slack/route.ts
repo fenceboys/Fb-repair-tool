@@ -6,20 +6,23 @@ interface QuotePayload {
   email?: string;
   address: string;
   city_state?: string;
-  quote_price: number;
+  quote_price?: number;
   base_cost?: number;
-  deposit: number;
-  requires_deposit: boolean;
+  deposit?: number;
+  requires_deposit?: boolean;
   repair_description?: string;
-  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status?: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
   link_sent?: boolean; // true if customer has received the link
+  scheduled_date?: string | null;
+  quote_appointment_date?: string | null;
 }
 
 interface SlackUploadRequest {
   quote: QuotePayload;
-  pdfBase64: string;
-  filename: string;
+  pdfBase64?: string;
+  filename?: string;
   customMessage?: string;
+  basicInfoOnly?: boolean; // If true, just send basic contact info without PDF
 }
 
 interface SlackUploadUrlResponse {
@@ -43,7 +46,7 @@ const formatCurrency = (amount: number) =>
 
 export async function POST(request: NextRequest) {
   try {
-    const { quote, pdfBase64, filename, customMessage } =
+    const { quote, pdfBase64, filename, customMessage, basicInfoOnly } =
       (await request.json()) as SlackUploadRequest;
 
     const botToken = process.env.SLACK_BOT_TOKEN;
@@ -65,6 +68,83 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If basicInfoOnly, send a status update message without PDF upload
+    if (basicInfoOnly) {
+      // Get status-specific emoji and header
+      const getStatusHeader = () => {
+        const formatDateTime = (dateStr: string) => {
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          });
+        };
+
+        switch (quote.status) {
+          case 'quote_scheduled':
+            const quoteDate = quote.quote_appointment_date || quote.scheduled_date;
+            return `:calendar: *QUOTE SCHEDULED* - ${quote.client_name}${quoteDate ? `\n:clock1: ${formatDateTime(quoteDate)}` : ''}`;
+          case 'awaiting_signature':
+            return `:envelope_with_arrow: *PROPOSAL SENT* - ${quote.client_name}`;
+          case 'awaiting_payment':
+            return `:pencil: *CONTRACT SIGNED* - ${quote.client_name}\n:credit_card: Awaiting payment`;
+          case 'paid':
+            return `:white_check_mark: *PAYMENT RECEIVED* - ${quote.client_name}\n:moneybag: Ready to schedule repair!`;
+          case 'repair_scheduled':
+            const repairDate = quote.scheduled_date;
+            return `:hammer_and_wrench: *REPAIR SCHEDULED* - ${quote.client_name}${repairDate ? `\n:clock1: ${formatDateTime(repairDate)}` : ''}`;
+          default:
+            return `:speech_balloon: *${quote.client_name || 'Customer'}*`;
+        }
+      };
+
+      const messageLines = [
+        getStatusHeader(),
+        '',
+        `*Address:* ${quote.address || 'N/A'}${quote.city_state ? `, ${quote.city_state}` : ''}`,
+        `*Phone:* ${quote.phone || 'N/A'}`,
+      ];
+
+      // Add quote price for relevant statuses
+      if (quote.quote_price && quote.quote_price > 0 && quote.status !== 'quote_scheduled' && quote.status !== 'draft') {
+        messageLines.push(`*Quote:* ${formatCurrency(quote.quote_price)}`);
+      }
+
+      if (customMessage?.trim()) {
+        messageLines.push('', `:memo: ${customMessage}`);
+      }
+
+      const response = await fetch('https://slack.com/api/chat.postMessage', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${botToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          channel: channelId,
+          text: messageLines.join('\n'),
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error(`Slack API error: ${data.error}`);
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    // Full message with PDF upload
+    if (!pdfBase64) {
+      return NextResponse.json(
+        { success: false, error: 'PDF data required for full message' },
+        { status: 400 }
+      );
+    }
+
     // Decode base64 PDF to binary
     const pdfBuffer = Buffer.from(pdfBase64, 'base64');
 
@@ -78,7 +158,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          filename: filename,
+          filename: filename || 'quote.pdf',
           length: pdfBuffer.length.toString(),
         }),
       }
@@ -105,11 +185,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the message for initial_comment
-    const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
+    const quotePrice = quote.quote_price || 0;
+    const deposit = quote.deposit || 0;
+    const amountDue = quote.requires_deposit ? deposit : quotePrice;
 
     // Calculate payout breakdown (75% Colt, 25% FB Margin)
-    const coltPayout = quote.quote_price * 0.75;
-    const fbMargin = quote.quote_price * 0.25;
+    const coltPayout = quotePrice * 0.75;
+    const fbMargin = quotePrice * 0.25;
 
     // Determine status display
     const getStatusLine = () => {
@@ -140,10 +222,10 @@ export async function POST(request: NextRequest) {
       '',
       `*Phone:* ${quote.phone}`,
       `*Address:* ${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
-      `*Quote Price:* ${formatCurrency(quote.quote_price)}`,
+      `*Quote Price:* ${formatCurrency(quotePrice)}`,
       quote.requires_deposit
-        ? `*Deposit Due:* ${formatCurrency(quote.deposit)}`
-        : `*Amount Due:* ${formatCurrency(quote.quote_price)}`,
+        ? `*Deposit Due:* ${formatCurrency(deposit)}`
+        : `*Amount Due:* ${formatCurrency(quotePrice)}`,
     ];
 
     if (quote.repair_description?.trim()) {
@@ -176,7 +258,7 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          files: [{ id: uploadUrlData.file_id, title: filename }],
+          files: [{ id: uploadUrlData.file_id, title: filename || 'quote.pdf' }],
           channel_id: channelId,
           initial_comment: initialComment,
         }),

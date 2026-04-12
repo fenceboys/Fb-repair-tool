@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/calculations';
 import { generatePDF } from '@/lib/pdf';
+import { notifyQuoteScheduled, notifyRepairScheduled } from '@/lib/slackNotifications';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import type { RepairQuote } from '@/types/quote';
 
@@ -146,6 +147,9 @@ export default function QuoteDetailsPage() {
 
         if (updateError) throw updateError;
         setQuote({ ...quote, quote_appointment_date: timestamp, status: 'quote_scheduled' });
+
+        // Send Slack notification for quote scheduled
+        notifyQuoteScheduled(quote, timestamp);
       } else {
         const { error: updateError } = await supabase
           .from('repair_quotes')
@@ -158,6 +162,9 @@ export default function QuoteDetailsPage() {
 
         if (updateError) throw updateError;
         setQuote({ ...quote, scheduled_date: timestamp, status: 'repair_scheduled' });
+
+        // Send Slack notification for repair scheduled
+        notifyRepairScheduled(quote, timestamp);
       }
       setShowScheduleModal(false);
     } catch (err) {

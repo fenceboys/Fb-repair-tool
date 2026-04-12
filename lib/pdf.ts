@@ -67,7 +67,11 @@ function drawWrappedText(
 
 export async function generatePDF(quote: RepairQuote): Promise<Uint8Array> {
   // Load the blank repair contract PDF
-  const existingPdfBytes = await fetch('/FB_Repair_Contract_Clean.pdf').then(res => res.arrayBuffer());
+  const response = await fetch('/FB_Repair_Contract_Clean.pdf');
+  if (!response.ok) {
+    throw new Error(`Failed to load PDF template: ${response.status} ${response.statusText}`);
+  }
+  const existingPdfBytes = await response.arrayBuffer();
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
   const pages = pdfDoc.getPages();

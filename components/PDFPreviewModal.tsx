@@ -31,17 +31,20 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
   };
 
   const handleViewPDF = async () => {
+    // Detect iOS/Safari
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isMobileSafari = isIOS || isSafari;
+
     // Open window immediately on user click (before async work)
     // iOS Safari blocks window.open() if called after async operations
-    const newWindow = window.open('about:blank', '_blank');
-
-    if (!newWindow) {
-      alert('Please allow popups to view the PDF');
-      return;
+    let newWindow: Window | null = null;
+    if (!isMobileSafari) {
+      newWindow = window.open('about:blank', '_blank');
+      if (newWindow) {
+        newWindow.document.write('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;"><p>Loading PDF...</p></body></html>');
+      }
     }
-
-    // Show loading message in the new tab
-    newWindow.document.write('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;"><p>Loading PDF...</p></body></html>');
 
     setLoading(true);
     try {
@@ -50,15 +53,44 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
       const bytes = await generatePDF(freshQuote);
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
 
-      // Create a local blob URL (no Supabase upload needed)
-      const blobUrl = URL.createObjectURL(blob);
+      if (isMobileSafari) {
+        // On iOS/Safari, use download approach or native share
+        const filename = generateFilename(freshQuote);
+        const file = new File([blob], filename, { type: 'application/pdf' });
 
-      // Navigate the already-open window to the blob URL
-      newWindow.location.href = blobUrl;
+        // Try native share first (works great on iOS)
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Fence Boys Repair Contract',
+          });
+        } else {
+          // Fallback to download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+      } else {
+        // Desktop browsers - open in new tab
+        const blobUrl = URL.createObjectURL(blob);
+        if (newWindow) {
+          newWindow.location.href = blobUrl;
+        } else {
+          // Fallback if popup was blocked
+          window.open(blobUrl, '_blank');
+        }
+      }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      newWindow.close();
-      alert('Failed to generate PDF');
+      if (newWindow) newWindow.close();
+      // More helpful error message
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to generate PDF: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

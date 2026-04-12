@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/calculations';
+import { notifyPaymentReceived } from '@/lib/slackNotifications';
 import { CustomerViewActions } from '@/components/CustomerViewActions';
 import { PaymentModal } from '@/components/PaymentModal';
 
@@ -73,6 +74,17 @@ export default function CustomerViewPage() {
       .update({ status: 'paid', updated_at: new Date().toISOString() })
       .eq('id', quoteId);
 
+    // Fetch fresh quote data and send Slack notification
+    const { data: freshQuote } = await supabase
+      .from('repair_quotes')
+      .select('*')
+      .eq('id', quoteId)
+      .single();
+
+    if (freshQuote) {
+      notifyPaymentReceived(freshQuote);
+    }
+
     setShowPayment(false);
     setPaymentComplete(true);
     fetchQuote(); // Refresh to get updated status
@@ -115,8 +127,9 @@ export default function CustomerViewPage() {
 
   const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
   const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled' || paymentComplete;
-  const needsSignature = quote.status === 'awaiting_signature' && !quote.client_signature;
-  const needsPayment = quote.status === 'awaiting_payment' || (quote.status === 'awaiting_signature' && quote.client_signature);
+  // Status is the source of truth - ignore old signatures if status says awaiting_signature
+  const needsSignature = quote.status === 'awaiting_signature';
+  const needsPayment = quote.status === 'awaiting_payment';
 
   const formatScheduledDate = (timestamp: string) => {
     const date = new Date(timestamp);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { notifyCustomerSigned } from '@/lib/slackNotifications';
 
 interface InlineSignatureProps {
   quoteId: string;
@@ -56,6 +57,18 @@ export function InlineSignature({ quoteId, onSignComplete }: InlineSignatureProp
         .eq('id', quoteId);
 
       if (updateError) throw updateError;
+
+      // Fetch the quote to send Slack notification
+      const { data: quoteData } = await supabase
+        .from('repair_quotes')
+        .select('*')
+        .eq('id', quoteId)
+        .single();
+
+      if (quoteData) {
+        // Send Slack notification for customer signed
+        notifyCustomerSigned(quoteData);
+      }
 
       setSigned(true);
       onSignComplete();

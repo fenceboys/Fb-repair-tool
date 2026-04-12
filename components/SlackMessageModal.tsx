@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import type { RepairQuote } from '@/types/quote';
-import { formatCurrency } from '@/lib/calculations';
 
 interface SlackMessageModalProps {
   quote: RepairQuote;
@@ -23,8 +22,6 @@ export function SlackMessageModal({
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const amountDue = quote.requires_deposit ? quote.deposit : quote.quote_price;
 
   const handleSend = async () => {
     setError(null);
@@ -75,29 +72,25 @@ export function SlackMessageModal({
           </div>
         </div>
 
-        {/* Preview Summary */}
+        {/* Preview Summary - basic contact info only */}
         <div className="p-4 space-y-2 bg-gray-50 border-b border-gray-100">
           <p className="text-xs uppercase tracking-wide text-gray-500 font-medium">Message Preview</p>
           <div className="space-y-1 text-sm">
             <p className="text-gray-700">
-              <span className="font-medium">Customer:</span> {quote.client_name}
+              <span className="font-medium">Customer:</span> {quote.client_name || '—'}
             </p>
             <p className="text-gray-700">
-              <span className="font-medium">Address:</span> {quote.address}
+              <span className="font-medium">Address:</span> {quote.address || '—'}
               {quote.city_state && `, ${quote.city_state}`}
             </p>
             <p className="text-gray-700">
-              <span className="font-medium">
-                {quote.requires_deposit ? 'Deposit Due:' : 'Amount Due:'}
-              </span>{' '}
-              {formatCurrency(amountDue)}
+              <span className="font-medium">Phone:</span> {quote.phone || '—'}
             </p>
-            <p className="text-blue-600 font-medium flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
-              PDF attached
-            </p>
+            {quote.email && (
+              <p className="text-gray-700">
+                <span className="font-medium">Email:</span> {quote.email}
+              </p>
+            )}
           </div>
         </div>
 
