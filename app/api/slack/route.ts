@@ -11,7 +11,7 @@ interface QuotePayload {
   deposit?: number;
   requires_deposit?: boolean;
   repair_description?: string;
-  status?: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status?: 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
   link_sent?: boolean; // true if customer has received the link
   scheduled_date?: string | null;
   quote_appointment_date?: string | null;
@@ -45,12 +45,19 @@ const formatCurrency = (amount: number) =>
   }).format(amount);
 
 export async function POST(request: NextRequest) {
+  console.log('[Slack API] Received request');
+
   try {
     const { quote, pdfBase64, filename, customMessage, basicInfoOnly } =
       (await request.json()) as SlackUploadRequest;
 
+    console.log('[Slack API] Parsed request:', { clientName: quote?.client_name, status: quote?.status, basicInfoOnly });
+
     const botToken = process.env.SLACK_BOT_TOKEN;
     const channelId = process.env.SLACK_CHANNEL_ID;
+
+    console.log('[Slack API] Token configured:', !!botToken && botToken !== 'xoxb-your-bot-token-here');
+    console.log('[Slack API] Channel configured:', !!channelId && channelId !== 'C0XXXXXXX');
 
     if (!botToken || botToken === 'xoxb-your-bot-token-here') {
       console.warn('Slack bot token not configured');
@@ -84,20 +91,22 @@ export async function POST(request: NextRequest) {
         };
 
         switch (quote.status) {
+          case 'scheduling_quote':
+            return `*NEW LEAD* - ${quote.client_name}\nNeeds quote appointment scheduled`;
           case 'quote_scheduled':
             const quoteDate = quote.quote_appointment_date || quote.scheduled_date;
-            return `:calendar: *QUOTE SCHEDULED* - ${quote.client_name}${quoteDate ? `\n:clock1: ${formatDateTime(quoteDate)}` : ''}`;
+            return `*QUOTE SCHEDULED* - ${quote.client_name}${quoteDate ? `\n${formatDateTime(quoteDate)}` : ''}`;
           case 'awaiting_signature':
-            return `:envelope_with_arrow: *PROPOSAL SENT* - ${quote.client_name}`;
+            return `*PROPOSAL SENT* - ${quote.client_name}`;
           case 'awaiting_payment':
-            return `:pencil: *CONTRACT SIGNED* - ${quote.client_name}\n:credit_card: Awaiting payment`;
+            return `*CONTRACT SIGNED* - ${quote.client_name}\nAwaiting payment`;
           case 'paid':
-            return `:white_check_mark: *PAYMENT RECEIVED* - ${quote.client_name}\n:moneybag: Ready to schedule repair!`;
+            return `*PAYMENT RECEIVED* - ${quote.client_name}\nReady to schedule repair!`;
           case 'repair_scheduled':
             const repairDate = quote.scheduled_date;
-            return `:hammer_and_wrench: *REPAIR SCHEDULED* - ${quote.client_name}${repairDate ? `\n:clock1: ${formatDateTime(repairDate)}` : ''}`;
+            return `*REPAIR SCHEDULED* - ${quote.client_name}${repairDate ? `\n${formatDateTime(repairDate)}` : ''}`;
           default:
-            return `:speech_balloon: *${quote.client_name || 'Customer'}*`;
+            return `*${quote.client_name || 'Customer'}*`;
         }
       };
 
@@ -109,12 +118,8 @@ export async function POST(request: NextRequest) {
       ];
 
       // Add quote price for relevant statuses
-      if (quote.quote_price && quote.quote_price > 0 && quote.status !== 'quote_scheduled' && quote.status !== 'draft') {
+      if (quote.quote_price && quote.quote_price > 0 && quote.status !== 'quote_scheduled' && quote.status !== 'draft' && quote.status !== 'scheduling_quote') {
         messageLines.push(`*Quote:* ${formatCurrency(quote.quote_price)}`);
-      }
-
-      if (customMessage?.trim()) {
-        messageLines.push('', `:memo: ${customMessage}`);
       }
 
       const response = await fetch('https://slack.com/api/chat.postMessage', {
@@ -197,26 +202,28 @@ export async function POST(request: NextRequest) {
     const getStatusLine = () => {
       switch (quote.status) {
         case 'repair_scheduled':
-          return `:calendar: *REPAIR SCHEDULED* - Work scheduled`;
+          return `*REPAIR SCHEDULED* - Work scheduled`;
         case 'paid':
-          return `:white_check_mark: *PAID* - Complete`;
+          return `*PAID* - Complete`;
         case 'awaiting_payment':
-          return `:pencil: *SIGNED* - Awaiting Payment (${formatCurrency(amountDue)})`;
+          return `*SIGNED* - Awaiting Payment (${formatCurrency(amountDue)})`;
         case 'awaiting_signature':
-          return `:envelope_with_arrow: *LINK SENT* - Awaiting Customer Signature`;
+          return `*LINK SENT* - Awaiting Customer Signature`;
         case 'quote_scheduled':
-          return `:calendar: *QUOTE SCHEDULED* - Quote appointment scheduled`;
+          return `*QUOTE SCHEDULED* - Quote appointment scheduled`;
+        case 'scheduling_quote':
+          return `*NEW LEAD* - Needs quote appointment scheduled`;
         case 'draft':
         default:
           if (quote.link_sent) {
-            return `:envelope_with_arrow: *LINK SENT* - Awaiting Customer Signature`;
+            return `*LINK SENT* - Awaiting Customer Signature`;
           }
-          return `:new: *NEW QUOTE* - Send link to customer`;
+          return `*NEW QUOTE* - Send link to customer`;
       }
     };
 
     let messageLines = [
-      `:wrench: *Repair Quote - ${quote.client_name}*`,
+      `*Repair Quote - ${quote.client_name}*`,
       '',
       getStatusLine(),
       '',
@@ -233,14 +240,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (customMessage?.trim()) {
-      messageLines.push('', `:memo: *Note:* ${customMessage}`);
+      messageLines.push('', `*Note:* ${customMessage}`);
     }
 
     // Add payout breakdown
     messageLines.push(
       '',
       '---',
-      `:moneybag: *Payout Breakdown:*`,
+      `*Payout Breakdown:*`,
       `• Colt: ${formatCurrency(coltPayout)}`,
       `• FB Margin: ${formatCurrency(fbMargin)}`,
       '---'

@@ -9,9 +9,10 @@ interface QuotesTableProps {
   quotes: RepairQuote[];
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: RepairQuote['status']) => void;
+  onQuoteScheduled: (id: string, date: string) => void;
 }
 
-export function QuotesTable({ quotes, onDelete, onStatusChange }: QuotesTableProps) {
+export function QuotesTable({ quotes, onDelete, onStatusChange, onQuoteScheduled }: QuotesTableProps) {
   const router = useRouter();
 
   const formatDate = (dateString: string) => {
@@ -113,6 +114,7 @@ export function QuotesTable({ quotes, onDelete, onStatusChange }: QuotesTablePro
                   <StatusBadge
                     status={quote.status}
                     onChange={(newStatus) => onStatusChange(quote.id, newStatus)}
+                    onQuoteScheduled={(date) => onQuoteScheduled(quote.id, date)}
                   />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

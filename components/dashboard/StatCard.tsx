@@ -1,7 +1,7 @@
 interface StatCardProps {
   label: string;
   count: number;
-  color: 'gray' | 'blue' | 'green' | 'purple' | 'teal';
+  color: string; // Supports dynamic colors from admin config
   isActive: boolean;
   onClick: () => void;
 }
@@ -11,6 +11,11 @@ const colorStyles: Record<string, { bg: string; text: string; border: string }> 
     bg: 'bg-gray-50',
     text: 'text-gray-900',
     border: 'border-gray-200',
+  },
+  orange: {
+    bg: 'bg-orange-50',
+    text: 'text-orange-700',
+    border: 'border-orange-200',
   },
   blue: {
     bg: 'bg-blue-50',

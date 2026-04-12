@@ -20,6 +20,7 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
+      scheduling_quote: 'bg-orange-100 text-orange-700',
       quote_scheduled: 'bg-gray-100 text-gray-700',
       draft: 'bg-amber-100 text-amber-700',
       awaiting_signature: 'bg-blue-100 text-blue-700',
@@ -32,6 +33,7 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
+      scheduling_quote: 'Scheduling Quote',
       quote_scheduled: 'Quote Scheduled',
       draft: 'Draft',
       awaiting_signature: 'Awaiting Signature',

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { RepairQuote } from '@/types/quote';
 import { generateSignatureDataUrl } from '@/lib/calculations';
+import { notifyQuoteScheduled } from '@/lib/slackNotifications';
 
 export function useQuotesList() {
   const [quotes, setQuotes] = useState<RepairQuote[]>([]);
@@ -117,6 +118,40 @@ export function useQuotesList() {
     }
   };
 
+  const scheduleQuote = async (id: string, appointmentDate: string): Promise<boolean> => {
+    try {
+      const { error: updateError } = await supabase
+        .from('repair_quotes')
+        .update({
+          status: 'quote_scheduled',
+          quote_appointment_date: appointmentDate,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Get the quote data for Slack notification
+      const quote = quotes.find(q => q.id === id);
+      if (quote) {
+        // Send Slack notification
+        notifyQuoteScheduled(quote, appointmentDate);
+      }
+
+      // Update local state
+      setQuotes(prev => prev.map(q =>
+        q.id === id
+          ? { ...q, status: 'quote_scheduled', quote_appointment_date: appointmentDate }
+          : q
+      ));
+      return true;
+    } catch (err) {
+      console.error('Error scheduling quote:', err);
+      setError('Failed to schedule quote');
+      return false;
+    }
+  };
+
   return {
     quotes,
     loading,
@@ -126,6 +161,7 @@ export function useQuotesList() {
     createQuote,
     deleteQuote,
     updateStatus,
+    scheduleQuote,
     refresh: fetchQuotes,
   };
 }

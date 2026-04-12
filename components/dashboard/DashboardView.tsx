@@ -4,14 +4,18 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuotesList } from '@/hooks/useQuotesList';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { useStatusConfig } from '@/hooks/useStatusConfig';
 import { StatCard } from './StatCard';
 import { QuotesTable } from './QuotesTable';
 
-type StatusFilter = 'all' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+type StatusFilter = 'all' | 'scheduling_quote' | 'quote_scheduled' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
 
 export function DashboardView() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const { config } = useAdminConfig();
+  const { statuses } = useStatusConfig();
   const {
     quotes,
     loading,
@@ -21,11 +25,26 @@ export function DashboardView() {
     createQuote,
     deleteQuote,
     updateStatus,
+    scheduleQuote,
   } = useQuotesList();
+
+  // Get status labels from config
+  const getStatusLabel = (key: string): string => {
+    const status = statuses.find((s) => s.status_key === key);
+    return status?.label || key;
+  };
+
+  // Get status color from config
+  const getStatusColor = (key: string): string => {
+    const status = statuses.find((s) => s.status_key === key);
+    return status?.color || 'gray';
+  };
 
   const stats = useMemo(
     () => ({
       all: quotes.length,
+      scheduling_quote: quotes.filter((q) => q.status === 'scheduling_quote').length,
+      quote_scheduled: quotes.filter((q) => q.status === 'quote_scheduled').length,
       awaiting_signature: quotes.filter((q) => q.status === 'awaiting_signature').length,
       awaiting_payment: quotes.filter((q) => q.status === 'awaiting_payment').length,
       paid: quotes.filter((q) => q.status === 'paid').length,
@@ -54,13 +73,24 @@ export function DashboardView() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <img
-                src="/fence-boys-logo.jpg"
-                alt="Fence Boys"
+                src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
+                alt={config?.portal_brand_name || 'Fence Boys'}
                 className="h-10 w-auto rounded"
               />
-              <h1 className="text-xl font-bold text-gray-900">Repair Quotes Dashboard</h1>
+              <h1 className="text-xl font-bold text-gray-900">{config?.dashboard_title || 'Repair Quotes Dashboard'}</h1>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                href="/admin"
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Admin Settings"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Admin
+              </Link>
               <Link
                 href="/"
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
@@ -94,7 +124,7 @@ export function DashboardView() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-6">
         {/* Stat Cards */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-7 gap-4 mb-6">
           <StatCard
             label="All Quotes"
             count={stats.all}
@@ -103,30 +133,44 @@ export function DashboardView() {
             onClick={() => setStatusFilter('all')}
           />
           <StatCard
-            label="Awaiting Signature"
+            label={getStatusLabel('scheduling_quote')}
+            count={stats.scheduling_quote}
+            color={getStatusColor('scheduling_quote')}
+            isActive={statusFilter === 'scheduling_quote'}
+            onClick={() => setStatusFilter('scheduling_quote')}
+          />
+          <StatCard
+            label={getStatusLabel('quote_scheduled')}
+            count={stats.quote_scheduled}
+            color={getStatusColor('quote_scheduled')}
+            isActive={statusFilter === 'quote_scheduled'}
+            onClick={() => setStatusFilter('quote_scheduled')}
+          />
+          <StatCard
+            label={getStatusLabel('awaiting_signature')}
             count={stats.awaiting_signature}
-            color="blue"
+            color={getStatusColor('awaiting_signature')}
             isActive={statusFilter === 'awaiting_signature'}
             onClick={() => setStatusFilter('awaiting_signature')}
           />
           <StatCard
-            label="Awaiting Payment"
+            label={getStatusLabel('awaiting_payment')}
             count={stats.awaiting_payment}
-            color="green"
+            color={getStatusColor('awaiting_payment')}
             isActive={statusFilter === 'awaiting_payment'}
             onClick={() => setStatusFilter('awaiting_payment')}
           />
           <StatCard
-            label="Paid"
+            label={getStatusLabel('paid')}
             count={stats.paid}
-            color="purple"
+            color={getStatusColor('paid')}
             isActive={statusFilter === 'paid'}
             onClick={() => setStatusFilter('paid')}
           />
           <StatCard
-            label="Repair Scheduled"
+            label={getStatusLabel('repair_scheduled')}
             count={stats.repair_scheduled}
-            color="teal"
+            color={getStatusColor('repair_scheduled')}
             isActive={statusFilter === 'repair_scheduled'}
             onClick={() => setStatusFilter('repair_scheduled')}
           />
@@ -177,7 +221,7 @@ export function DashboardView() {
             {error}
           </div>
         ) : (
-          <QuotesTable quotes={filteredQuotes} onDelete={deleteQuote} onStatusChange={updateStatus} />
+          <QuotesTable quotes={filteredQuotes} onDelete={deleteQuote} onStatusChange={updateStatus} onQuoteScheduled={scheduleQuote} />
         )}
       </main>
     </div>

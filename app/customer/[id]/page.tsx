@@ -7,6 +7,9 @@ import { formatCurrency } from '@/lib/calculations';
 import { notifyPaymentReceived } from '@/lib/slackNotifications';
 import { CustomerViewActions } from '@/components/CustomerViewActions';
 import { PaymentModal } from '@/components/PaymentModal';
+import { useAdminConfig } from '@/hooks/useAdminConfig';
+import { usePortalCopy } from '@/hooks/usePortalCopy';
+import { getAlertColorClasses } from '@/types/admin';
 
 interface QuoteData {
   id: string;
@@ -21,7 +24,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status: 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
   scheduled_date: string | null;
   portal_closed: boolean;
 }
@@ -31,6 +34,9 @@ export default function CustomerViewPage() {
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
   const isInternal = searchParams.get('internal') === 'true';
+
+  const { config } = useAdminConfig();
+  const { getCopyByStatus } = usePortalCopy();
 
   const [quote, setQuote] = useState<QuoteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +125,7 @@ export default function CustomerViewPage() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Quote Unavailable</h1>
-          <p className="text-gray-600">This quote is no longer available. Please contact Fence Boys if you have questions.</p>
+          <p className="text-gray-600">{config?.portal_closed_message || 'This quote is no longer available. Please contact Fence Boys if you have questions.'}</p>
         </div>
       </div>
     );
@@ -153,12 +159,12 @@ export default function CustomerViewPage() {
         <div className="max-w-lg mx-auto px-4 py-4">
           <div className="flex items-center justify-center gap-3">
             <img
-              src="/fence-boys-logo.jpg"
-              alt="Fence Boys"
+              src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
+              alt={config?.portal_brand_name || 'Fence Boys'}
               className="h-12 w-auto rounded"
             />
             <div className="text-center">
-              <h1 className="text-xl font-bold text-gray-900">Fence Boys</h1>
+              <h1 className="text-xl font-bold text-gray-900">{config?.portal_brand_name || 'Fence Boys'}</h1>
               <p className="text-sm text-gray-500">Repair Quote</p>
             </div>
           </div>
@@ -212,77 +218,105 @@ export default function CustomerViewPage() {
           </div>
         </section>
 
-        {/* Status-based UI */}
+        {/* Status-based UI - Now using portal copy from admin config */}
 
         {/* Awaiting Signature - prompt to sign */}
-        {needsSignature && !isInternal && (
-          <section className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <svg className="h-8 w-8 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-blue-800">Signature Required</p>
-                <p className="text-sm text-blue-600">Please review and sign to proceed.</p>
+        {needsSignature && !isInternal && (() => {
+          const copy = getCopyByStatus('awaiting_signature');
+          const colors = getAlertColorClasses(copy?.alert_color || 'blue');
+          return (
+            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
+              <div className="flex items-center gap-3">
+                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <div>
+                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Signature Required'}</p>
+                  <p className={`text-sm ${colors.icon}`}>{copy?.description || 'Please review and sign to proceed.'}</p>
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+              {copy?.custom_message && (
+                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+              )}
+            </section>
+          );
+        })()}
 
         {/* Awaiting Payment - signed, needs payment */}
-        {needsPayment && !isPaidOrScheduled && (
-          <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-green-800">Contract Signed</p>
-                <p className="text-sm text-green-600">Ready to pay your {quote.requires_deposit ? 'deposit' : 'balance'}.</p>
+        {needsPayment && !isPaidOrScheduled && (() => {
+          const copy = getCopyByStatus('awaiting_payment');
+          const colors = getAlertColorClasses(copy?.alert_color || 'green');
+          return (
+            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
+              <div className="flex items-center gap-3">
+                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Contract Signed'}</p>
+                  <p className={`text-sm ${colors.icon}`}>{copy?.description || `Ready to pay your ${quote.requires_deposit ? 'deposit' : 'balance'}.`}</p>
+                </div>
               </div>
-            </div>
+              {copy?.custom_message && (
+                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+              )}
 
-            <button
-              onClick={() => setShowPayment(true)}
-              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              Pay {formatCurrency(amountDue)} Now
-            </button>
-          </section>
-        )}
+              <button
+                onClick={() => setShowPayment(true)}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Pay {formatCurrency(amountDue)} Now
+              </button>
+            </section>
+          );
+        })()}
 
         {/* Paid - waiting for scheduling */}
-        {quote.status === 'paid' && (
-          <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-green-800">Payment Received</p>
-                <p className="text-sm text-green-600">Thank you! We'll be in touch to schedule your repair.</p>
+        {quote.status === 'paid' && (() => {
+          const copy = getCopyByStatus('paid');
+          const colors = getAlertColorClasses(copy?.alert_color || 'green');
+          return (
+            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
+              <div className="flex items-center gap-3">
+                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Payment Received'}</p>
+                  <p className={`text-sm ${colors.icon}`}>{copy?.description || "Thank you! We'll be in touch to schedule your repair."}</p>
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+              {copy?.custom_message && (
+                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+              )}
+            </section>
+          );
+        })()}
 
         {/* Repair Scheduled - show appointment date */}
-        {quote.status === 'repair_scheduled' && quote.scheduled_date && (
-          <section className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center gap-3">
-              <svg className="h-8 w-8 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <div>
-                <p className="font-semibold text-green-800">Repair Scheduled</p>
-                <p className="text-sm text-green-600">{formatScheduledDate(quote.scheduled_date)}</p>
+        {quote.status === 'repair_scheduled' && quote.scheduled_date && (() => {
+          const copy = getCopyByStatus('repair_scheduled');
+          const colors = getAlertColorClasses(copy?.alert_color || 'green');
+          return (
+            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
+              <div className="flex items-center gap-3">
+                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Repair Scheduled'}</p>
+                  <p className={`text-sm ${colors.icon}`}>{copy?.show_schedule_info ? formatScheduledDate(quote.scheduled_date) : (copy?.description || 'Your repair appointment is confirmed.')}</p>
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+              {copy?.custom_message && (
+                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+              )}
+            </section>
+          );
+        })()}
       </main>
 
       {/* Action Buttons */}

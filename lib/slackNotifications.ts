@@ -1,16 +1,44 @@
 import type { RepairQuote } from '@/types/quote';
 import { generatePDFBlob, generateFilename } from './pdf';
+import { supabase } from './supabase';
+import { replaceMergeTags } from './adminConfig';
+import type { NotificationTemplate, StatusConfig } from '@/types/admin';
+import { DEFAULT_NOTIFICATION_TEMPLATES, DEFAULT_STATUS_CONFIG } from '@/types/admin';
 
-type QuoteStatus = 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+type QuoteStatus = 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
 
-const statusLabels: Record<QuoteStatus, string> = {
-  quote_scheduled: 'Quote Scheduled',
-  draft: 'Draft',
-  awaiting_signature: 'Awaiting Signature',
-  awaiting_payment: 'Awaiting Payment',
-  paid: 'Paid',
-  repair_scheduled: 'Repair Scheduled',
-};
+// Cache for templates (fetched once per session)
+let templatesCache: NotificationTemplate[] | null = null;
+let statusCache: StatusConfig[] | null = null;
+
+async function getNotificationTemplate(statusKey: string): Promise<NotificationTemplate | undefined> {
+  if (!templatesCache) {
+    try {
+      const { data } = await supabase
+        .from('notification_templates')
+        .select('*');
+      templatesCache = data || [];
+    } catch {
+      templatesCache = DEFAULT_NOTIFICATION_TEMPLATES as NotificationTemplate[];
+    }
+  }
+  return templatesCache.find((t) => t.status_key === statusKey);
+}
+
+async function getStatusLabel(statusKey: string): Promise<string> {
+  if (!statusCache) {
+    try {
+      const { data } = await supabase
+        .from('status_config')
+        .select('*');
+      statusCache = data || [];
+    } catch {
+      statusCache = DEFAULT_STATUS_CONFIG as StatusConfig[];
+    }
+  }
+  const status = statusCache.find((s) => s.status_key === statusKey);
+  return status?.label || statusKey;
+}
 
 interface SlackStatusPayload {
   quote: {
@@ -38,6 +66,7 @@ interface SlackStatusPayload {
 /**
  * Send a Slack notification for a status change.
  * This is the main function to call when any status changes.
+ * Now reads message templates from the database.
  */
 export async function sendStatusChangeNotification(
   quote: Partial<RepairQuote> & { id: string; client_name: string | null; phone: string | null; address: string | null; status: QuoteStatus },
@@ -48,8 +77,23 @@ export async function sendStatusChangeNotification(
     scheduledDate?: string | null;
   }
 ): Promise<boolean> {
+  console.log('[Slack] sendStatusChangeNotification called:', { quoteId: quote.id, newStatus, clientName: quote.client_name });
+
   try {
-    const statusMessage = getStatusMessage(newStatus, quote.client_name, options?.scheduledDate);
+    // Check if notifications are enabled for this status
+    const template = await getNotificationTemplate(newStatus);
+    if (template && !template.slack_enabled) {
+      console.log('[Slack] Notifications disabled for status:', newStatus);
+      return true; // Return true since this is expected behavior
+    }
+
+    // Get message from template or use custom message
+    const statusMessage = options?.customMessage || await getStatusMessage(
+      newStatus,
+      quote,
+      options?.scheduledDate,
+      template
+    );
 
     // Build the payload
     const payload: SlackStatusPayload = {
@@ -69,7 +113,7 @@ export async function sendStatusChangeNotification(
         scheduled_date: options?.scheduledDate || quote.scheduled_date,
         quote_appointment_date: quote.quote_appointment_date,
       },
-      customMessage: options?.customMessage || statusMessage,
+      customMessage: statusMessage,
       basicInfoOnly: !options?.includePdf,
     };
 
@@ -93,32 +137,62 @@ export async function sendStatusChangeNotification(
       }
     }
 
+    console.log('[Slack] Sending to /api/slack with payload:', JSON.stringify(payload, null, 2));
+
     const response = await fetch('/api/slack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
+    const responseData = await response.json();
+    console.log('[Slack] Response:', response.status, responseData);
+
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Slack notification failed:', errorData);
+      console.error('[Slack] Notification failed:', responseData);
       return false;
     }
 
+    console.log('[Slack] Notification sent successfully');
     return true;
   } catch (error) {
-    console.error('Error sending Slack notification:', error);
+    console.error('[Slack] Error sending notification:', error);
     return false;
   }
 }
 
 /**
  * Get a human-readable message for a status change
+ * Now uses templates from the database with merge tag replacement
  */
-function getStatusMessage(status: QuoteStatus, clientName: string | null, scheduledDate?: string | null): string {
-  const name = clientName || 'Customer';
+async function getStatusMessage(
+  status: QuoteStatus,
+  quote: Partial<RepairQuote>,
+  scheduledDate?: string | null,
+  template?: NotificationTemplate
+): Promise<string> {
+  // If we have a template, use it with merge tag replacement
+  if (template?.slack_template) {
+    return replaceMergeTags(template.slack_template, {
+      customer_name: quote.client_name,
+      phone: quote.phone,
+      address: quote.address,
+      city_state: quote.city_state,
+      quote_price: quote.quote_price,
+      deposit: quote.deposit,
+      scheduled_date: scheduledDate || quote.scheduled_date || quote.quote_appointment_date,
+      repair_description: quote.repair_description,
+    });
+  }
+
+  // Fallback to hardcoded messages if no template found
+  const name = quote.client_name || 'Customer';
+  const statusLabel = await getStatusLabel(status);
 
   switch (status) {
+    case 'scheduling_quote':
+      return `New lead: ${name} - needs quote appointment scheduled`;
+
     case 'quote_scheduled':
       if (scheduledDate) {
         const date = new Date(scheduledDate);
@@ -160,7 +234,7 @@ function getStatusMessage(status: QuoteStatus, clientName: string | null, schedu
       return 'Quote created';
 
     default:
-      return `Status changed to ${statusLabels[status] || status}`;
+      return `Status changed to ${statusLabel}`;
   }
 }
 
@@ -214,4 +288,10 @@ export async function notifyRepairScheduled(
     'repair_scheduled',
     { scheduledDate: repairDate }
   );
+}
+
+// Clear template cache (call after admin updates)
+export function clearNotificationCache(): void {
+  templatesCache = null;
+  statusCache = null;
 }

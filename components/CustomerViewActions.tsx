@@ -22,7 +22,7 @@ interface QuoteData {
   requires_deposit: boolean;
   client_signature: string | null;
   base_cost: number;
-  status: 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status: 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
 }
 
 interface CustomerViewActionsProps {
@@ -44,8 +44,8 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
   const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled';
   // Status is the source of truth - ignore old signatures
   const canSign = quote.status === 'awaiting_signature';
-  // Show send options only for draft/quote_scheduled
-  const canSendProposal = quote.status === 'draft' || quote.status === 'quote_scheduled';
+  // Show send options only for draft/scheduling_quote/quote_scheduled
+  const canSendProposal = quote.status === 'draft' || quote.status === 'scheduling_quote' || quote.status === 'quote_scheduled';
 
   const handleSendProposal = async (methods: { sms: boolean; email: boolean }) => {
     setSendingProposal(true);
@@ -68,7 +68,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
       }
 
       // Update status to awaiting_signature
-      if (quote.status === 'draft' || quote.status === 'quote_scheduled') {
+      if (quote.status === 'draft' || quote.status === 'scheduling_quote' || quote.status === 'quote_scheduled') {
         await supabase
           .from('repair_quotes')
           .update({ status: 'awaiting_signature', updated_at: new Date().toISOString() })
