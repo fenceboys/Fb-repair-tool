@@ -296,23 +296,35 @@ export default function CustomerViewPage() {
           );
         })()}
 
-        {/* Repair Scheduled - show appointment date */}
+        {/* Repair Scheduled - show appointment date prominently */}
         {quote.status === 'repair_scheduled' && quote.scheduled_date && (() => {
           const copy = getCopyByStatus('repair_scheduled');
-          const colors = getAlertColorClasses(copy?.alert_color || 'green');
+          const scheduledDate = new Date(quote.scheduled_date);
           return (
-            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
-              <div className="flex items-center gap-3">
-                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <section className="bg-white border border-gray-200 rounded-lg p-6 mb-4 text-center">
+              {/* Calendar Icon */}
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <div>
-                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Repair Scheduled'}</p>
-                  <p className={`text-sm ${colors.icon}`}>{copy?.show_schedule_info ? formatScheduledDate(quote.scheduled_date) : (copy?.description || 'Your repair appointment is confirmed.')}</p>
-                </div>
               </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">{copy?.title || 'Repair Scheduled!'}</h3>
+              <p className="text-gray-500 mb-6">{copy?.description || 'Mark your calendar - we\'re coming to fix your fence'}</p>
+
+              {/* Large Date Display */}
+              <div className="bg-gray-50 rounded-xl py-6 px-8 mb-4">
+                <p className="text-2xl font-bold text-gray-900">
+                  {scheduledDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                </p>
+                <p className="text-xl text-blue-600 font-semibold mt-1">
+                  {scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </p>
+              </div>
+
               {copy?.custom_message && (
-                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+                <p className="text-sm text-gray-600">{copy.custom_message}</p>
               )}
             </section>
           );
