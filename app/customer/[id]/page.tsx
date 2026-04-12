@@ -264,7 +264,7 @@ export default function CustomerViewPage() {
 
               {/* Payment Amount Box */}
               <div className="bg-gray-50 rounded-xl py-5 px-6 mb-4">
-                <p className="text-sm text-gray-500 mb-1">{quote.requires_deposit ? 'Deposit Due' : 'Amount Due'}</p>
+                <p className="text-sm text-gray-500 mb-1">Amount Due</p>
                 <p className="text-3xl font-bold text-gray-900">{formatCurrency(amountDue)}</p>
               </div>
 

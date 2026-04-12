@@ -107,7 +107,7 @@ export function PortalCopyEditor() {
           <h3 className="text-xl font-semibold text-gray-900 mb-1">{title || 'Contract Signed!'}</h3>
           <p className="text-gray-500 mb-6">{description || 'Thank you! Complete your payment to get scheduled.'}</p>
           <div className="bg-gray-50 rounded-xl py-5 px-6 mb-4">
-            <p className="text-sm text-gray-500 mb-1">Deposit Due</p>
+            <p className="text-sm text-gray-500 mb-1">Amount Due</p>
             <p className="text-3xl font-bold text-gray-900">$1,250.00</p>
           </div>
           {customMessage && <p className="text-sm text-gray-600 mb-4">{customMessage}</p>}
