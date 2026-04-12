@@ -223,21 +223,25 @@ export default function CustomerViewPage() {
         {/* Awaiting Signature - prompt to sign */}
         {needsSignature && !isInternal && (() => {
           const copy = getCopyByStatus('awaiting_signature');
-          const colors = getAlertColorClasses(copy?.alert_color || 'blue');
           return (
-            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
-              <div className="flex items-center gap-3">
-                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <section className="bg-white border border-gray-200 rounded-lg p-6 mb-4 text-center">
+              {/* Pen Icon */}
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                <div>
-                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Signature Required'}</p>
-                  <p className={`text-sm ${colors.icon}`}>{copy?.description || 'Please review and sign to proceed.'}</p>
-                </div>
               </div>
-              {copy?.custom_message && (
-                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
-              )}
+
+              {/* Title */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">{copy?.title || 'Signature Required'}</h3>
+              <p className="text-gray-500 mb-6">{copy?.description || 'Please review your quote and sign below to proceed'}</p>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 rounded-xl p-5 border border-blue-100 mb-4">
+                <p className="text-sm text-blue-800">
+                  {copy?.custom_message || 'By signing, you agree to the repair work and pricing outlined in your quote.'}
+                </p>
+              </div>
             </section>
           );
         })()}
@@ -245,30 +249,37 @@ export default function CustomerViewPage() {
         {/* Awaiting Payment - signed, needs payment */}
         {needsPayment && !isPaidOrScheduled && (() => {
           const copy = getCopyByStatus('awaiting_payment');
-          const colors = getAlertColorClasses(copy?.alert_color || 'green');
           return (
-            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
-              <div className="flex items-center gap-3">
-                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <section className="bg-white border border-gray-200 rounded-lg p-6 mb-4 text-center">
+              {/* Checkmark Icon */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <div>
-                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Contract Signed'}</p>
-                  <p className={`text-sm ${colors.icon}`}>{copy?.description || `Ready to pay your ${quote.requires_deposit ? 'deposit' : 'balance'}.`}</p>
-                </div>
               </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">{copy?.title || 'Contract Signed!'}</h3>
+              <p className="text-gray-500 mb-6">{copy?.description || 'Thank you! Complete your payment to get scheduled.'}</p>
+
+              {/* Payment Amount Box */}
+              <div className="bg-gray-50 rounded-xl py-5 px-6 mb-4">
+                <p className="text-sm text-gray-500 mb-1">{quote.requires_deposit ? 'Deposit Due' : 'Amount Due'}</p>
+                <p className="text-3xl font-bold text-gray-900">{formatCurrency(amountDue)}</p>
+              </div>
+
               {copy?.custom_message && (
-                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
+                <p className="text-sm text-gray-600 mb-4">{copy.custom_message}</p>
               )}
 
               <button
                 onClick={() => setShowPayment(true)}
-                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                Pay {formatCurrency(amountDue)} Now
+                Pay Now
               </button>
             </section>
           );
@@ -277,21 +288,25 @@ export default function CustomerViewPage() {
         {/* Paid - waiting for scheduling */}
         {quote.status === 'paid' && (() => {
           const copy = getCopyByStatus('paid');
-          const colors = getAlertColorClasses(copy?.alert_color || 'green');
           return (
-            <section className={`${colors.bg} border ${colors.border} rounded-lg p-4 mb-4`}>
-              <div className="flex items-center gap-3">
-                <svg className={`h-8 w-8 ${colors.icon} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <section className="bg-white border border-gray-200 rounded-lg p-6 mb-4 text-center">
+              {/* Checkmark Icon */}
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <div>
-                  <p className={`font-semibold ${colors.text}`}>{copy?.title || 'Payment Received'}</p>
-                  <p className={`text-sm ${colors.icon}`}>{copy?.description || "Thank you! We'll be in touch to schedule your repair."}</p>
-                </div>
               </div>
-              {copy?.custom_message && (
-                <p className={`mt-2 text-sm ${colors.text}`}>{copy.custom_message}</p>
-              )}
+
+              {/* Title */}
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">{copy?.title || 'Payment Received!'}</h3>
+              <p className="text-gray-500 mb-6">{copy?.description || "Thank you! We'll contact you soon to schedule your repair."}</p>
+
+              {/* Info Box */}
+              <div className="bg-green-50 rounded-xl p-5 border border-green-100">
+                <p className="text-sm text-green-800">
+                  {copy?.custom_message || 'Our team will reach out within 1-2 business days to schedule your repair appointment.'}
+                </p>
+              </div>
             </section>
           );
         })()}
