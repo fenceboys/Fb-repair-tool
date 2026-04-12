@@ -64,7 +64,7 @@ export function useQuotesList() {
           quote_price: 0,
           misc: 0,
           deposit: 0,
-          status: 'draft',
+          status: 'scheduling_quote',
           salesperson_signature: salespersonSignature,
         })
         .select()
