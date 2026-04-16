@@ -9,7 +9,7 @@ interface InternalNotesSectionProps {
 }
 
 export function InternalNotesSection({ quote, onFieldChange }: InternalNotesSectionProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
   const hasNotes = !!quote.internal_notes?.trim();
 
   return (
