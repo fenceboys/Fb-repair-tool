@@ -122,6 +122,11 @@ export async function POST(request: NextRequest) {
         messageLines.push(`*Quote:* ${formatCurrency(quote.quote_price)}`);
       }
 
+      // Add custom message if provided
+      if (customMessage?.trim()) {
+        messageLines.push('', `💬 ${customMessage}`);
+      }
+
       const response = await fetch('https://slack.com/api/chat.postMessage', {
         method: 'POST',
         headers: {
