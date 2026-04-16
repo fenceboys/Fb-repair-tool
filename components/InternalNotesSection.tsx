@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { RepairQuote } from '@/types/quote';
 
 interface InternalNotesSectionProps {
@@ -10,7 +10,17 @@ interface InternalNotesSectionProps {
 
 export function InternalNotesSection({ quote, onFieldChange }: InternalNotesSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasNotes = !!quote.internal_notes?.trim();
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  }, [quote.internal_notes, isExpanded]);
 
   return (
     <section className="bg-white rounded-lg border border-gray-200">
@@ -43,11 +53,16 @@ export function InternalNotesSection({ quote, onFieldChange }: InternalNotesSect
       {isExpanded && (
         <div className="px-4 pb-4">
           <textarea
+            ref={textareaRef}
             value={quote.internal_notes || ''}
-            onChange={(e) => onFieldChange('internal_notes', e.target.value)}
+            onChange={(e) => {
+              onFieldChange('internal_notes', e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = `${e.target.scrollHeight}px`;
+            }}
             placeholder="Add quick reference notes (auto-saves)..."
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none"
+            rows={2}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base resize-none overflow-hidden"
           />
           <p className="text-xs text-gray-400 mt-2">Not visible to customer • Auto-saves</p>
         </div>
