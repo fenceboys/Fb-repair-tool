@@ -54,27 +54,17 @@ export function PDFPreviewModal({ quote, isOpen, onClose }: PDFPreviewModalProps
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
 
       if (isMobileSafari) {
-        // On iOS/Safari, use download approach or native share
+        // On iOS/Safari, download the PDF directly
+        // (Share functionality is available via the "Share / Save" button)
         const filename = generateFilename(freshQuote);
-        const file = new File([blob], filename, { type: 'application/pdf' });
-
-        // Try native share first (works great on iOS)
-        if (navigator.share && navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Fence Boys Repair Contract',
-          });
-        } else {
-          // Fallback to download
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
       } else {
         // Desktop browsers - open in new tab
         const blobUrl = URL.createObjectURL(blob);

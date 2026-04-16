@@ -9,7 +9,8 @@ interface CustomerSectionProps {
 
 export function CustomerSection({ quote, onFieldChange }: CustomerSectionProps) {
   // Lock editing when quote has been sent for signature
-  const isLocked = quote.status !== 'draft' && quote.status !== 'quote_scheduled';
+  // Allow editing for: scheduling_quote, quote_scheduled, draft
+  const isLocked = !['draft', 'scheduling_quote', 'quote_scheduled'].includes(quote.status);
 
   return (
     <section className="bg-white rounded-lg border border-gray-200 p-4">
