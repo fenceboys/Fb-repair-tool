@@ -199,9 +199,13 @@ export async function POST(request: NextRequest) {
     const deposit = quote.deposit || 0;
     const amountDue = quote.requires_deposit ? deposit : quotePrice;
 
-    // Calculate payout breakdown (75% Colt, 25% FB Margin)
-    const coltPayout = quotePrice * 0.75;
-    const fbMargin = quotePrice * 0.25;
+    // Calculate payout breakdown
+    // FB gets fixed 25% margin on the minimum price (baseCost / 0.75)
+    // Colt gets everything else (base cost + any misc/extra)
+    const baseCost = quote.base_cost || 0;
+    const minPrice = baseCost > 0 ? baseCost / 0.75 : 0;
+    const fbMargin = minPrice * 0.25; // Fixed 25% of min price
+    const coltPayout = quotePrice - fbMargin; // Base cost + misc goes to Colt
 
     // Determine status display
     const getStatusLine = () => {
