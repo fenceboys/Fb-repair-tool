@@ -26,9 +26,11 @@ export async function POST(request: NextRequest) {
     console.log('Creating payment intent for amount:', amount);
 
     // Create a PaymentIntent with the order amount and currency
+    // Using explicit payment_method_types to disable Link (save info prompt)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency: 'usd',
+      payment_method_types: ['card'],
       metadata: {
         quoteId: quoteId || '',
         customerName: customerName || '',

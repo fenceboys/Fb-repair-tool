@@ -173,6 +173,10 @@ function CheckoutForm({
         <PaymentElement
           options={{
             layout: 'tabs',
+            wallets: {
+              applePay: 'auto',
+              googlePay: 'auto',
+            },
           }}
         />
       </div>
@@ -278,8 +282,8 @@ export function PaymentModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden my-auto">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Pay Your Deposit</h2>
