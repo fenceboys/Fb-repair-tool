@@ -29,12 +29,10 @@ export function PricingSection({
   const requiresDeposit = quote.requires_deposit ?? false;
   const amountDue = requiresDeposit ? quote.deposit : quote.quote_price;
 
-  // Payout breakdown calculations
-  // FB gets fixed 25% margin on the minimum price
-  // Colt gets everything else (base cost + any misc/extra)
+  // Payout breakdown calculations (75% Colt, 25% FB Margin)
   const sellPrice = quote.quote_price || 0;
-  const fbMargin = minPrice * 0.25; // Fixed 25% of min price
-  const coltPayout = sellPrice - fbMargin; // Base cost + misc goes to Colt
+  const coltPayout = sellPrice * 0.75;
+  const fbMargin = sellPrice * 0.25;
 
   return (
     <section className="bg-white rounded-lg border border-gray-200 p-4">
