@@ -159,7 +159,7 @@ function CheckoutForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-4">
       {/* Amount display */}
       <div className="bg-gray-50 rounded-lg p-4 text-center">
         <p className="text-sm text-gray-600">Amount Due</p>
@@ -283,7 +283,7 @@ export function PaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden my-auto">
+      <div className="bg-white w-full max-w-md max-h-[90vh] rounded-2xl shadow-xl overflow-hidden my-auto flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Pay Your Deposit</h2>
@@ -298,7 +298,7 @@ export function PaymentModal({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto flex-1">
           {TEST_MODE ? (
             <TestCheckoutForm
               amount={amount}
