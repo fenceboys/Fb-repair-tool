@@ -38,6 +38,7 @@ export interface RepairQuote {
   revision_count: number;
   revised_at: string | null;
   portal_closed: boolean;
+  internal_notes: string | null;
 }
 
 export type RepairQuoteInsert = Omit<RepairQuote, 'id' | 'created_at' | 'updated_at'>;

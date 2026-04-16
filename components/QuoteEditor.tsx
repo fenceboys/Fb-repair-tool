@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuote } from '@/hooks/useQuote';
+import { InternalNotesSection } from './InternalNotesSection';
 import { CustomerSection } from './CustomerSection';
 import { PricingSection } from './PricingSection';
 import { ActionBar } from './ActionBar';
@@ -177,6 +178,8 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <InternalNotesSection quote={quote} onFieldChange={updateField} />
+
         <CustomerSection quote={quote} onFieldChange={updateField} />
 
         <PricingSection
