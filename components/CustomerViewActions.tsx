@@ -293,6 +293,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     revision_count: 0,
     revised_at: null,
     portal_closed: false,
+    internal_notes: null,
   };
 
   return (
