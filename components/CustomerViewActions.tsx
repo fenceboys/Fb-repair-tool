@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { generatePDFBlob, generateFilename } from '@/lib/pdf';
-import { PDFPreviewModal } from './PDFPreviewModal';
+import { generatePDF, generatePDFBlob, generateFilename } from '@/lib/pdf';
 import { SlackMessageModal } from './SlackMessageModal';
 import { SendProposalModal } from './SendProposalModal';
 import { InlineSignature } from './InlineSignature';
@@ -33,13 +32,13 @@ interface CustomerViewActionsProps {
 
 export function CustomerViewActions({ quote, onSignComplete, isInternal = false }: CustomerViewActionsProps) {
   const [showSignature, setShowSignature] = useState(false);
-  const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [showSlackModal, setShowSlackModal] = useState(false);
   const [showSendProposalModal, setShowSendProposalModal] = useState(false);
   const [slackLoading, setSlackLoading] = useState(false);
   const [slackSent, setSlackSent] = useState(false);
   const [sendingProposal, setSendingProposal] = useState(false);
   const [proposalSent, setProposalSent] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled';
   // Status is the source of truth - ignore old signatures
@@ -169,6 +168,102 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     }
   };
 
+  // Fetch fresh quote data to get latest signature
+  const fetchFreshQuote = async (): Promise<RepairQuote> => {
+    const { data, error } = await supabase
+      .from('repair_quotes')
+      .select('*')
+      .eq('id', quote.id)
+      .single();
+
+    if (error || !data) {
+      console.error('Failed to fetch fresh quote:', error);
+      return quoteForModals; // Fallback to prop data
+    }
+    return data;
+  };
+
+  const handleViewPDF = async () => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isMobileSafari = isIOS || isSafari;
+
+    let newWindow: Window | null = null;
+    if (!isMobileSafari) {
+      newWindow = window.open('about:blank', '_blank');
+      if (newWindow) {
+        newWindow.document.write('<html><body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;"><p>Loading PDF...</p></body></html>');
+      }
+    }
+
+    setPdfLoading(true);
+    try {
+      const freshQuote = await fetchFreshQuote();
+      const bytes = await generatePDF(freshQuote);
+      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
+
+      if (isMobileSafari) {
+        const filename = generateFilename(freshQuote);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        const blobUrl = URL.createObjectURL(blob);
+        if (newWindow) {
+          newWindow.location.href = blobUrl;
+        } else {
+          window.open(blobUrl, '_blank');
+        }
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      if (newWindow) newWindow.close();
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to generate PDF: ${errorMsg}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleSharePDF = async () => {
+    setPdfLoading(true);
+    try {
+      const freshQuote = await fetchFreshQuote();
+      const bytes = await generatePDF(freshQuote);
+      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' });
+      const filename = generateFilename(freshQuote);
+      const file = new File([blob], filename, { type: 'application/pdf' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Fence Boys Repair Contract',
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error sharing PDF:', error);
+        alert('Failed to share PDF');
+      }
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   // Convert QuoteData to RepairQuote for modals
   const quoteForModals: RepairQuote = {
     id: quote.id,
@@ -234,32 +329,34 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
       {isInternal ? (
         <div className="max-w-lg mx-auto px-4 pb-6">
           <div className="space-y-3">
-            {/* Review PDF Button - at the top */}
-            <button
-              onClick={() => setShowPDFPreview(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors border border-gray-300"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* View PDF + Share PDF row */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handleViewPDF}
+                disabled={pdfLoading}
+                className="flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors border border-gray-300 disabled:opacity-50"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                />
-              </svg>
-              <span>Review PDF</span>
-            </button>
+                {pdfLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-600 border-t-transparent" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+                <span>View PDF</span>
+              </button>
+              <button
+                onClick={handleSharePDF}
+                disabled={pdfLoading}
+                className="flex items-center justify-center gap-2 px-4 py-4 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors border border-gray-300 disabled:opacity-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                <span>Share PDF</span>
+              </button>
+            </div>
 
             {/* Send Proposal + Slack row */}
             <div className="grid grid-cols-2 gap-3">
@@ -345,22 +442,17 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
 
               {/* View PDF Button */}
               <button
-                onClick={() => setShowPDFPreview(true)}
-                className={`flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors ${canSign ? 'flex-1' : 'flex-1'}`}
+                onClick={handleViewPDF}
+                disabled={pdfLoading}
+                className={`flex items-center justify-center gap-2 px-4 py-3 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors disabled:opacity-50 ${canSign ? 'flex-1' : 'flex-1'}`}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
+                {pdfLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                )}
                 <span>View Proposal</span>
               </button>
             </div>
@@ -369,12 +461,6 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
       )}
 
       {/* Modals */}
-      <PDFPreviewModal
-        quote={quoteForModals}
-        isOpen={showPDFPreview}
-        onClose={() => setShowPDFPreview(false)}
-      />
-
       <SlackMessageModal
         quote={quoteForModals}
         isOpen={showSlackModal}
