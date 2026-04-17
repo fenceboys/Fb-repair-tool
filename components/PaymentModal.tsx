@@ -244,13 +244,19 @@ export function PaymentModal({
     setLoading(true);
     setError(null);
 
+    // Small delay to ensure modal is fully rendered (helps with iOS Safari)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
 
       const res = await fetch('/api/create-payment-intent', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: JSON.stringify({
           amount,
           quoteId,
@@ -258,9 +264,18 @@ export function PaymentModal({
           customerEmail,
         }),
         signal: controller.signal,
+        credentials: 'same-origin',
+        mode: 'same-origin',
       });
 
       clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Payment API error:', res.status, errorText);
+        setError(`Server error (${res.status}). Please try again.`);
+        return;
+      }
 
       const data = await res.json();
 
@@ -272,8 +287,11 @@ export function PaymentModal({
         setError('Invalid response from payment server');
       }
     } catch (err) {
+      console.error('Payment init error:', err);
       if (err instanceof Error && err.name === 'AbortError') {
         setError('Connection timed out. Please check your internet and try again.');
+      } else if (err instanceof Error) {
+        setError(`Connection error: ${err.message}`);
       } else {
         setError('Failed to connect to payment server. Please try again.');
       }
