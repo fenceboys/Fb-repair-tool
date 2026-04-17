@@ -15,6 +15,7 @@ const navItems = [
   { href: '/admin/notifications', label: 'Notifications', icon: 'bell' },
   { href: '/admin/portal', label: 'Portal Copy', icon: 'document' },
   { href: '/admin/dashboard-views', label: 'Dashboard Views', icon: 'table' },
+  { href: '/admin/errors', label: 'Payment Errors', icon: 'alert' },
 ];
 
 function NavIcon({ name }: { name: string }) {
@@ -54,6 +55,12 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'alert':
+      return (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       );
     default:

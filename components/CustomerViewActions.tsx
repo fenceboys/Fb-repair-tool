@@ -294,6 +294,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     revised_at: null,
     portal_closed: false,
     internal_notes: null,
+    payment_client_secret: null,
   };
 
   return (

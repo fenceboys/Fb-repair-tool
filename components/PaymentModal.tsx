@@ -1,10 +1,76 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Component, ReactNode, useState, useEffect } from 'react';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+type PaymentErrorBranch =
+  | 'fetch_timeout'
+  | 'non_ok_response'
+  | 'no_client_secret'
+  | 'api_error_response'
+  | 'fetch_reject'
+  | 'fetch_reject_unknown'
+  | 'elements_mount'
+  | 'elements_render';
+
+async function logClientError(payload: {
+  quoteId?: string;
+  errorBranch: PaymentErrorBranch;
+  httpStatus?: number;
+  rawName?: string;
+  rawMessage?: string;
+  requestId?: string;
+}): Promise<void> {
+  try {
+    const conn = (navigator as Navigator & {
+      connection?: { effectiveType?: string; saveData?: boolean };
+    }).connection;
+    await fetch('/api/client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        source: 'payment_modal',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+        connectionType: conn?.effectiveType ?? null,
+        saveData: conn?.saveData ?? null,
+        ...payload,
+      }),
+    });
+  } catch {
+    // Swallow — telemetry failure must not break the payment UX.
+  }
+}
+
+// Catches render-time errors inside the Stripe <Elements> tree.
+class PaymentElementsBoundary extends Component<
+  { quoteId: string; onError: () => void; children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    void logClientError({
+      quoteId: this.props.quoteId,
+      errorBranch: 'elements_render',
+      rawName: error.name,
+      rawMessage: error.message,
+    });
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) return null;
+    return this.props.children;
+  }
+}
 
 // Test mode - set to true to simulate payments without Stripe
 const TEST_MODE = process.env.NEXT_PUBLIC_PAYMENT_TEST_MODE === 'true';
@@ -112,11 +178,13 @@ interface PaymentModalProps {
 function CheckoutForm({
   amount,
   onPaymentComplete,
-  onClose
+  onClose,
+  onElementsLoadError,
 }: {
   amount: number;
   onPaymentComplete: () => void;
   onClose: () => void;
+  onElementsLoadError: (err: { error: { message?: string; type?: string } }) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -171,6 +239,7 @@ function CheckoutForm({
       {/* Stripe Payment Element */}
       <div className="min-h-[200px]">
         <PaymentElement
+          onLoadError={onElementsLoadError}
           options={{
             layout: 'tabs',
             wallets: {
@@ -247,6 +316,11 @@ export function PaymentModal({
     // Small delay to ensure modal is fully rendered (helps with iOS Safari)
     await new Promise(resolve => setTimeout(resolve, 100));
 
+    const requestId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
@@ -256,6 +330,7 @@ export function PaymentModal({
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'X-Request-Id': requestId,
         },
         body: JSON.stringify({
           amount,
@@ -274,6 +349,13 @@ export function PaymentModal({
         const errorText = await res.text();
         console.error('Payment API error:', res.status, errorText);
         setError(`Server error (${res.status}). Please try again.`);
+        void logClientError({
+          quoteId,
+          errorBranch: 'non_ok_response',
+          httpStatus: res.status,
+          rawMessage: errorText.slice(0, 500),
+          requestId,
+        });
         return;
       }
 
@@ -281,23 +363,67 @@ export function PaymentModal({
 
       if (data.error) {
         setError(data.error);
+        void logClientError({
+          quoteId,
+          errorBranch: 'api_error_response',
+          httpStatus: res.status,
+          rawMessage: String(data.error),
+          requestId,
+        });
       } else if (data.clientSecret) {
         setClientSecret(data.clientSecret);
       } else {
         setError('Invalid response from payment server');
+        void logClientError({
+          quoteId,
+          errorBranch: 'no_client_secret',
+          httpStatus: res.status,
+          requestId,
+        });
       }
     } catch (err) {
       console.error('Payment init error:', err);
       if (err instanceof Error && err.name === 'AbortError') {
         setError('Connection timed out. Please check your internet and try again.');
+        void logClientError({
+          quoteId,
+          errorBranch: 'fetch_timeout',
+          rawName: err.name,
+          rawMessage: err.message,
+          requestId,
+        });
       } else if (err instanceof Error) {
         setError(`Connection error: ${err.message}`);
+        void logClientError({
+          quoteId,
+          errorBranch: 'fetch_reject',
+          rawName: err.name,
+          rawMessage: err.message,
+          requestId,
+        });
       } else {
         setError('Failed to connect to payment server. Please try again.');
+        void logClientError({
+          quoteId,
+          errorBranch: 'fetch_reject_unknown',
+          rawMessage: String(err),
+          requestId,
+        });
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleElementsLoadError = (evt: { error: { message?: string; type?: string } }) => {
+    const message = evt?.error?.message || 'Stripe Elements failed to load';
+    setError(message);
+    void logClientError({
+      quoteId,
+      errorBranch: 'elements_mount',
+      rawName: evt?.error?.type,
+      rawMessage: message,
+    });
   };
 
   const handleRetry = () => {
@@ -380,30 +506,36 @@ export function PaymentModal({
                 </div>
               )}
 
-              {clientSecret && (
-                <Elements
-                  stripe={stripePromise}
-                  options={{
-                    clientSecret,
-                    appearance: {
-                      theme: 'stripe',
-                      variables: {
-                        colorPrimary: '#2563eb',
-                        colorBackground: '#ffffff',
-                        colorText: '#1f2937',
-                        colorDanger: '#dc2626',
-                        fontFamily: 'system-ui, sans-serif',
-                        borderRadius: '8px',
-                      },
-                    },
-                  }}
+              {clientSecret && !error && (
+                <PaymentElementsBoundary
+                  quoteId={quoteId}
+                  onError={() => setError('Payment form failed to load. Please try again.')}
                 >
-                  <CheckoutForm
-                    amount={amount}
-                    onPaymentComplete={onPaymentComplete}
-                    onClose={onClose}
-                  />
-                </Elements>
+                  <Elements
+                    stripe={stripePromise}
+                    options={{
+                      clientSecret,
+                      appearance: {
+                        theme: 'stripe',
+                        variables: {
+                          colorPrimary: '#2563eb',
+                          colorBackground: '#ffffff',
+                          colorText: '#1f2937',
+                          colorDanger: '#dc2626',
+                          fontFamily: 'system-ui, sans-serif',
+                          borderRadius: '8px',
+                        },
+                      },
+                    }}
+                  >
+                    <CheckoutForm
+                      amount={amount}
+                      onPaymentComplete={onPaymentComplete}
+                      onClose={onClose}
+                      onElementsLoadError={handleElementsLoadError}
+                    />
+                  </Elements>
+                </PaymentElementsBoundary>
               )}
             </>
           )}
