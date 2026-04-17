@@ -29,6 +29,7 @@ const BRANCH_LABELS: Record<string, string> = {
   fetch_reject_unknown: 'Fetch rejected (unknown)',
   elements_mount: 'Stripe mount failed',
   elements_render: 'Stripe render crashed',
+  confirm_payment: 'Payment declined',
 };
 
 function formatTimestamp(iso: string): string {

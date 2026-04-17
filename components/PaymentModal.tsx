@@ -14,7 +14,8 @@ type PaymentErrorBranch =
   | 'fetch_reject'
   | 'fetch_reject_unknown'
   | 'elements_mount'
-  | 'elements_render';
+  | 'elements_render'
+  | 'confirm_payment';
 
 async function logClientError(payload: {
   quoteId?: string;
@@ -177,11 +178,13 @@ interface PaymentModalProps {
 
 function CheckoutForm({
   amount,
+  quoteId,
   onPaymentComplete,
   onClose,
   onElementsLoadError,
 }: {
   amount: number;
+  quoteId: string;
   onPaymentComplete: () => void;
   onClose: () => void;
   onElementsLoadError: (err: { error: { message?: string; type?: string } }) => void;
@@ -220,6 +223,12 @@ function CheckoutForm({
     if (submitError) {
       setError(submitError.message || 'Payment failed');
       setProcessing(false);
+      void logClientError({
+        quoteId,
+        errorBranch: 'confirm_payment',
+        rawName: submitError.type,
+        rawMessage: submitError.message ?? submitError.code ?? 'Payment failed',
+      });
     } else {
       // Payment successful
       onPaymentComplete();
@@ -530,6 +539,7 @@ export function PaymentModal({
                   >
                     <CheckoutForm
                       amount={amount}
+                      quoteId={quoteId}
                       onPaymentComplete={onPaymentComplete}
                       onClose={onClose}
                       onElementsLoadError={handleElementsLoadError}
