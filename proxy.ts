@@ -46,8 +46,14 @@ export async function proxy(request: NextRequest) {
   // API endpoints invoked from the customer portal. These MUST bypass the
   // auth redirect — customers have no session. If the proxy redirects them
   // to /login, the client's res.json() throws on the HTML response and
-  // the modal shows a generic "Failed to initialize payment" error.
-  const customerPortalApis = ['/api/create-payment-intent', '/api/client-error'];
+  // the modal shows a generic "Failed to initialize payment" error (for
+  // /api/create-payment-intent) or Slack notifications silently no-op
+  // (for /api/slack on customer signing / payment completion).
+  const customerPortalApis = [
+    '/api/create-payment-intent',
+    '/api/client-error',
+    '/api/slack',
+  ];
   const isCustomerPortalApi = customerPortalApis.some(route => pathname.startsWith(route));
 
   // Allow public routes and customer portal
