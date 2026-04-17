@@ -238,13 +238,17 @@ export function PaymentModal({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  useEffect(() => {
-    if (isOpen && !clientSecret) {
-      setLoading(true);
-      setError(null);
+  const initializePayment = async () => {
+    setLoading(true);
+    setError(null);
 
-      fetch('/api/create-payment-intent', {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+      const res = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -253,29 +257,49 @@ export function PaymentModal({
           customerName,
           customerEmail,
         }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.error) {
-            setError(data.error);
-          } else {
-            setClientSecret(data.clientSecret);
-          }
-        })
-        .catch(() => {
-          setError('Failed to initialize payment');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    }
-  }, [isOpen, amount, quoteId, customerName, customerEmail, clientSecret]);
+        signal: controller.signal,
+      });
 
-  // Reset client secret when modal closes
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+
+      if (data.error) {
+        setError(data.error);
+      } else if (data.clientSecret) {
+        setClientSecret(data.clientSecret);
+      } else {
+        setError('Invalid response from payment server');
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Connection timed out. Please check your internet and try again.');
+      } else {
+        setError('Failed to connect to payment server. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    setClientSecret(null);
+    initializePayment();
+  };
+
+  useEffect(() => {
+    if (isOpen && !clientSecret && !loading && !error) {
+      initializePayment();
+    }
+  }, [isOpen]);
+
+  // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
       setClientSecret(null);
       setError(null);
+      setRetryCount(0);
     }
   }, [isOpen]);
 
@@ -315,13 +339,26 @@ export function PaymentModal({
 
               {error && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-center">
-                  <p className="text-red-600">{error}</p>
-                  <button
-                    onClick={onClose}
-                    className="mt-3 px-4 py-2 text-sm text-red-600 hover:text-red-700"
-                  >
-                    Close
-                  </button>
+                  <p className="text-red-600 mb-4">{error}</p>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={onClose}
+                      className="px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRetry}
+                      className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                  {retryCount > 0 && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      Attempt {retryCount + 1} • If this persists, try refreshing the page
+                    </p>
+                  )}
                 </div>
               )}
 
