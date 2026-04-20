@@ -18,12 +18,23 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        shouldCreateUser: false,
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
     if (error) {
-      setMessage({ type: 'error', text: error.message });
+      const msg = error.message.toLowerCase();
+      const isMissingUser =
+        msg.includes('signups not allowed') ||
+        msg.includes('not found') ||
+        msg.includes('user does not exist');
+      setMessage({
+        type: 'error',
+        text: isMissingUser
+          ? "That email isn't authorized. Ask an admin to invite you."
+          : error.message,
+      });
     } else {
       setMessage({ type: 'success', text: 'Check your email for the login link!' });
       setEmail('');
