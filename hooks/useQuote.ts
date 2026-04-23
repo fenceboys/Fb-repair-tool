@@ -148,9 +148,9 @@ export function useQuote(id: string | null) {
   }, [quote, updateQuote]);
 
   // Shared cascade: when material or labor changes, recompute base_cost and
-  // the dependent misc value. If Colt hasn't set a sell price yet, default it
-  // to the 25%-margin minimum so the new quote isn't stuck at $0; he can still
-  // type a different number to override. ActionBar also guards Next on
+  // the dependent misc value. The sell price floats up with the 25%-margin
+  // minimum (so a quote never sits below margin as costs grow), but Colt's
+  // explicit higher sell price is preserved. ActionBar also guards Next on
   // quote_price > 0 as a safety net.
   const applyCostChange = useCallback(
     (updates: RepairQuoteUpdate, newMaterial: number, newLabor: number) => {
@@ -160,7 +160,7 @@ export function useQuote(id: string | null) {
       const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
       const total = Math.ceil(markedUpPrice / 10) * 10;
       const existingSell = quote.quote_price || 0;
-      const nextSell = existingSell > 0 ? existingSell : minPrice;
+      const nextSell = existingSell >= minPrice ? existingSell : minPrice;
       const misc = nextSell - total;
       updateQuote({
         ...updates,

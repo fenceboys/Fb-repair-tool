@@ -168,11 +168,11 @@ export function PricingSection({
         ) : (
           // Normal UI: Material Cost + Labor Cost inputs, auto-total
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Material Cost <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-gray-500 text-lg">$</span>
                 <input
                   type="number"
@@ -184,17 +184,17 @@ export function PricingSection({
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
                   disabled={isLocked}
-                  className={`flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  className={`flex-1 min-w-0 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                     isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
                   }`}
                 />
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Labor Cost <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="text-gray-500 text-lg">$</span>
                 <input
                   type="number"
@@ -206,7 +206,7 @@ export function PricingSection({
                   onWheel={(e) => e.currentTarget.blur()}
                   placeholder="0.00"
                   disabled={isLocked}
-                  className={`flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  className={`flex-1 min-w-0 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xl font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                     isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''
                   }`}
                 />
@@ -256,11 +256,11 @@ export function PricingSection({
         </div>
 
         {/* Sell Price (editable) */}
-        <div>
+        <div className="min-w-0">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Sell Price <span className="text-red-500">*</span>
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <span className="text-gray-500 text-lg">$</span>
             <input
               type="number"
@@ -270,7 +270,7 @@ export function PricingSection({
               onWheel={(e) => e.currentTarget.blur()}
               placeholder=""
               disabled={isLocked}
-              className={`flex-1 px-4 py-3 border-2 border-green-500 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xl font-bold bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+              className={`flex-1 min-w-0 w-full px-4 py-3 border-2 border-green-500 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xl font-bold bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                 isLocked ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed' : ''
               }`}
             />
