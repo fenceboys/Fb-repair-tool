@@ -156,7 +156,9 @@ export function useQuote(id: string | null) {
     (updates: RepairQuoteUpdate, newMaterial: number, newLabor: number) => {
       if (!quote) return;
       const newBaseCost = newMaterial + newLabor;
-      const minPrice = newBaseCost > 0 ? Math.round((newBaseCost / 0.75) * 100) / 100 : 0;
+      // Round the 25%-margin min up to the next $10 so suggested sell prices
+      // are clean multiples of ten (e.g. $266.67 → $270).
+      const minPrice = newBaseCost > 0 ? Math.ceil((newBaseCost / 0.75) / 10) * 10 : 0;
       const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
       const total = Math.ceil(markedUpPrice / 10) * 10;
       const existingSell = quote.quote_price || 0;

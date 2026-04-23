@@ -38,9 +38,10 @@ export function PricingSection({
     quote.labor_cost === null &&
     (quote.base_cost || 0) > 0;
 
-  // Calculate minimum price with 25% margin (cost / 0.75)
+  // Calculate minimum price with 25% margin (cost / 0.75), rounded up to the
+  // next $10 so the suggested sell price is a clean multiple of ten.
   const baseCost = quote.base_cost || 0;
-  const minPrice = baseCost > 0 ? Math.round((baseCost / 0.75) * 100) / 100 : 0;
+  const minPrice = baseCost > 0 ? Math.ceil((baseCost / 0.75) / 10) * 10 : 0;
 
   // Misc is the difference between sell price and minimum price
   const misc = (quote.quote_price || 0) - minPrice;
