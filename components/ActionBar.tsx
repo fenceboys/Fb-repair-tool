@@ -39,7 +39,8 @@ export function ActionBar({ quote, onUpdate }: ActionBarProps) {
     setScheduledTime(parsed.time);
   }, [quote.scheduled_date]);
 
-  // Validation - all fields required
+  // Validation - all fields required. Sell price is mandatory so proposals
+  // never ship at $0 when costs were entered but sell price was skipped.
   const isValid =
     quote.client_name?.trim() &&
     quote.phone?.trim() &&
@@ -48,7 +49,7 @@ export function ActionBar({ quote, onUpdate }: ActionBarProps) {
     quote.city_state?.trim() &&
     quote.zip?.trim() &&
     quote.repair_description?.trim() &&
-    (quote.quote_price > 0 || quote.base_cost > 0);
+    quote.quote_price > 0;
 
   // Check if quote has been sent to customer
   const isSent = quote.status === 'awaiting_signature' || quote.status === 'awaiting_payment';

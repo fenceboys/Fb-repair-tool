@@ -147,25 +147,20 @@ export function useQuote(id: string | null) {
     });
   }, [quote, updateQuote]);
 
-  // Shared cascade: when material or labor changes we recompute base_cost and
-  // the derived sell price / misc / deposit. If Colt hasn't entered a sell
-  // price yet, default it to the 25%-margin min price so the proposal never
-  // ships with Quote Price = $0 just because the sell-price field was blank.
+  // Shared cascade: when material or labor changes, recompute base_cost and
+  // the dependent misc value. Sell price stays whatever Colt already entered
+  // (or 0 if he hasn't yet) — the ActionBar blocks Next until he fills it in.
   const applyCostChange = useCallback(
     (updates: RepairQuoteUpdate, newMaterial: number, newLabor: number) => {
       if (!quote) return;
       const newBaseCost = newMaterial + newLabor;
-      const minPrice = newBaseCost > 0 ? Math.round((newBaseCost / 0.75) * 100) / 100 : 0;
       const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
       const total = Math.ceil(markedUpPrice / 10) * 10;
-      const existingSell = quote.quote_price || 0;
-      const nextSell = existingSell > 0 ? existingSell : minPrice;
-      const misc = nextSell - total;
+      const sellPrice = quote.quote_price || 0;
+      const misc = sellPrice - total;
       updateQuote({
         ...updates,
         base_cost: newBaseCost,
-        quote_price: nextSell,
-        deposit: Math.round(nextSell * 0.5 * 100) / 100,
         misc,
       });
     },
