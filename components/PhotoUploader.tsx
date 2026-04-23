@@ -34,7 +34,7 @@ export function PhotoUploader({ onUpload, disabled = false }: PhotoUploaderProps
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
+        multiple
         onChange={(e) => handleFiles(e.target.files)}
         className="hidden"
         disabled={disabled || uploading}
@@ -59,7 +59,7 @@ export function PhotoUploader({ onUpload, disabled = false }: PhotoUploaderProps
             d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <span>{uploading ? 'Uploading…' : 'Take photo'}</span>
+        <span>{uploading ? 'Uploading…' : 'Add photos'}</span>
       </button>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
