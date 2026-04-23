@@ -48,7 +48,6 @@ export default function LoginPage() {
     }
 
     setStage('code');
-    setMessage({ type: 'success', text: `We sent a 6-digit code to ${email}. It may take up to a minute.` });
     setLoading(false);
   };
 
