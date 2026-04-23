@@ -147,39 +147,40 @@ export function useQuote(id: string | null) {
     });
   }, [quote, updateQuote]);
 
-  // Set material cost - recomputes base_cost (= material + labor) and cascades
-  // through the same markup/misc math as setBaseCost so the sell price is preserved.
+  // Shared cascade: when material or labor changes we recompute base_cost and
+  // the derived sell price / misc / deposit. If Colt hasn't entered a sell
+  // price yet, default it to the 25%-margin min price so the proposal never
+  // ships with Quote Price = $0 just because the sell-price field was blank.
+  const applyCostChange = useCallback(
+    (updates: RepairQuoteUpdate, newMaterial: number, newLabor: number) => {
+      if (!quote) return;
+      const newBaseCost = newMaterial + newLabor;
+      const minPrice = newBaseCost > 0 ? Math.round((newBaseCost / 0.75) * 100) / 100 : 0;
+      const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
+      const total = Math.ceil(markedUpPrice / 10) * 10;
+      const existingSell = quote.quote_price || 0;
+      const nextSell = existingSell > 0 ? existingSell : minPrice;
+      const misc = nextSell - total;
+      updateQuote({
+        ...updates,
+        base_cost: newBaseCost,
+        quote_price: nextSell,
+        deposit: Math.round(nextSell * 0.5 * 100) / 100,
+        misc,
+      });
+    },
+    [quote, updateQuote]
+  );
+
   const setMaterialCost = useCallback((value: number) => {
     if (!quote) return;
-    const labor = quote.labor_cost ?? 0;
-    const newBaseCost = value + labor;
-    const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
-    const total = Math.ceil(markedUpPrice / 10) * 10;
-    const sellPrice = quote.quote_price || 0;
-    const misc = sellPrice - total;
-    updateQuote({
-      material_cost: value,
-      base_cost: newBaseCost,
-      misc,
-    });
-  }, [quote, updateQuote]);
+    applyCostChange({ material_cost: value }, value, quote.labor_cost ?? 0);
+  }, [quote, applyCostChange]);
 
-  // Set labor cost - recomputes base_cost (= material + labor) and cascades
-  // through the same markup/misc math as setBaseCost so the sell price is preserved.
   const setLaborCost = useCallback((value: number) => {
     if (!quote) return;
-    const material = quote.material_cost ?? 0;
-    const newBaseCost = material + value;
-    const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
-    const total = Math.ceil(markedUpPrice / 10) * 10;
-    const sellPrice = quote.quote_price || 0;
-    const misc = sellPrice - total;
-    updateQuote({
-      labor_cost: value,
-      base_cost: newBaseCost,
-      misc,
-    });
-  }, [quote, updateQuote]);
+    applyCostChange({ labor_cost: value }, quote.material_cost ?? 0, value);
+  }, [quote, applyCostChange]);
 
   // Toggle deposit requirement
   const toggleDeposit = useCallback((requiresDeposit: boolean) => {

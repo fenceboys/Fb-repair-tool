@@ -349,10 +349,6 @@ export async function POST(request: NextRequest) {
       '',
       `*Phone:* ${formatPhoneForSlack(quote.phone)}`,
       `*Address:* ${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
-      `*Quote Price:* ${formatCurrency(quotePrice)}`,
-      quote.requires_deposit
-        ? `*Deposit Due:* ${formatCurrency(deposit)}`
-        : `*Amount Due:* ${formatCurrency(quotePrice)}`,
     ];
 
     if (quote.repair_description?.trim()) {
@@ -363,7 +359,7 @@ export async function POST(request: NextRequest) {
       messageLines.push('', `*Note:* ${customMessage}`);
     }
 
-    // Financial breakdown block — Cost + Payout grouped together at the bottom.
+    // Financial breakdown block — Cost + Payout + Quote/Amount grouped at the bottom.
     const materialCost = quote.material_cost ?? null;
     const laborCost = quote.labor_cost ?? null;
     messageLines.push('', '---');
@@ -385,6 +381,11 @@ export async function POST(request: NextRequest) {
       `*Payout Breakdown:*`,
       `• Colt: ${formatCurrency(coltPayout)}`,
       `• FB Margin: ${formatCurrency(fbMargin)}`,
+      '',
+      `*Quote Price:* ${formatCurrency(quotePrice)}`,
+      quote.requires_deposit
+        ? `*Deposit Due:* ${formatCurrency(deposit)}`
+        : `*Amount Due:* ${formatCurrency(quotePrice)}`,
       '---'
     );
 
