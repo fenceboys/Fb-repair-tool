@@ -157,7 +157,7 @@ export default function LoginPage() {
               <input
                 type="text"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 placeholder="123456"
                 inputMode="numeric"
                 autoComplete="one-time-code"
@@ -166,13 +166,13 @@ export default function LoginPage() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-2xl tracking-widest text-center font-mono"
               />
               <p className="text-xs text-gray-500 mt-2">
-                Enter the 6-digit code we emailed to <span className="font-medium">{email}</span>.
+                Enter the code we emailed to <span className="font-medium">{email}</span>.
               </p>
             </div>
 
             <button
               type="submit"
-              disabled={loading || code.length !== 6}
+              disabled={loading || code.length < 6}
               className="w-full px-4 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? 'Verifying...' : 'Sign In'}
