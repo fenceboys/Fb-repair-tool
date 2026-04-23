@@ -147,6 +147,40 @@ export function useQuote(id: string | null) {
     });
   }, [quote, updateQuote]);
 
+  // Set material cost - recomputes base_cost (= material + labor) and cascades
+  // through the same markup/misc math as setBaseCost so the sell price is preserved.
+  const setMaterialCost = useCallback((value: number) => {
+    if (!quote) return;
+    const labor = quote.labor_cost ?? 0;
+    const newBaseCost = value + labor;
+    const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
+    const total = Math.ceil(markedUpPrice / 10) * 10;
+    const sellPrice = quote.quote_price || 0;
+    const misc = sellPrice - total;
+    updateQuote({
+      material_cost: value,
+      base_cost: newBaseCost,
+      misc,
+    });
+  }, [quote, updateQuote]);
+
+  // Set labor cost - recomputes base_cost (= material + labor) and cascades
+  // through the same markup/misc math as setBaseCost so the sell price is preserved.
+  const setLaborCost = useCallback((value: number) => {
+    if (!quote) return;
+    const material = quote.material_cost ?? 0;
+    const newBaseCost = material + value;
+    const markedUpPrice = newBaseCost > 0 ? newBaseCost / 0.67 : 0;
+    const total = Math.ceil(markedUpPrice / 10) * 10;
+    const sellPrice = quote.quote_price || 0;
+    const misc = sellPrice - total;
+    updateQuote({
+      labor_cost: value,
+      base_cost: newBaseCost,
+      misc,
+    });
+  }, [quote, updateQuote]);
+
   // Toggle deposit requirement
   const toggleDeposit = useCallback((requiresDeposit: boolean) => {
     if (!quote) return;
@@ -224,6 +258,8 @@ export function useQuote(id: string | null) {
     updateQuote,
     setBaseCost,
     setSellPrice,
+    setMaterialCost,
+    setLaborCost,
     toggleDeposit,
     markAsSent,
     refetch,

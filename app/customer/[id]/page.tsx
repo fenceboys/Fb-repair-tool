@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { formatCurrency } from '@/lib/calculations';
 import { notifyPaymentReceived } from '@/lib/slackNotifications';
 import { CustomerViewActions } from '@/components/CustomerViewActions';
 import { PaymentModal } from '@/components/PaymentModal';
+import { PhotosSection } from '@/components/PhotosSection';
 import { useAdminConfig } from '@/hooks/useAdminConfig';
 import { usePortalCopy } from '@/hooks/usePortalCopy';
 import { getAlertColorClasses } from '@/types/admin';
@@ -31,6 +32,7 @@ interface QuoteData {
 
 export default function CustomerViewPage() {
   const params = useParams();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const quoteId = params.id as string;
   const isInternal = searchParams.get('internal') === 'true';
@@ -156,7 +158,29 @@ export default function CustomerViewPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4">
+        <div className="max-w-lg mx-auto px-4 py-4 relative">
+          {isInternal && (
+            <button
+              onClick={() => router.push(`/quote/${quoteId}/edit`)}
+              className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-600 hover:text-gray-900"
+              aria-label="Back to quote editor"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              <span className="text-sm">Back</span>
+            </button>
+          )}
           <div className="flex items-center justify-center gap-3">
             <img
               src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
@@ -217,6 +241,13 @@ export default function CustomerViewPage() {
             </div>
           </div>
         </section>
+
+        {/* Internal-only: photos attached to the quote. Never visible to the customer. */}
+        {isInternal && (
+          <div className="mb-4">
+            <PhotosSection quoteId={quote.id} readOnly />
+          </div>
+        )}
 
         {/* Status-based UI - Now using portal copy from admin config */}
 

@@ -50,6 +50,9 @@ interface SlackStatusPayload {
     city_state?: string | null;
     quote_price?: number;
     base_cost?: number;
+    material_cost?: number | null;
+    labor_cost?: number | null;
+    materials_notes?: string | null;
     deposit?: number;
     requires_deposit?: boolean;
     repair_description?: string | null;
@@ -106,6 +109,9 @@ export async function sendStatusChangeNotification(
         city_state: quote.city_state,
         quote_price: quote.quote_price,
         base_cost: quote.base_cost,
+        material_cost: quote.material_cost ?? null,
+        labor_cost: quote.labor_cost ?? null,
+        materials_notes: quote.materials_notes ?? null,
         deposit: quote.deposit,
         requires_deposit: quote.requires_deposit,
         repair_description: quote.repair_description,

@@ -112,6 +112,7 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quote: {
+            id: freshQuote.id,
             client_name: freshQuote.client_name,
             phone: freshQuote.phone,
             email: freshQuote.email,
@@ -119,6 +120,9 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
             city_state: freshQuote.city_state,
             quote_price: freshQuote.quote_price,
             base_cost: freshQuote.base_cost,
+            material_cost: freshQuote.material_cost ?? null,
+            labor_cost: freshQuote.labor_cost ?? null,
+            materials_notes: freshQuote.materials_notes ?? null,
             deposit: freshQuote.deposit,
             requires_deposit: freshQuote.requires_deposit ?? false,
             repair_description: freshQuote.repair_description,
@@ -295,6 +299,9 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     portal_closed: false,
     internal_notes: null,
     payment_client_secret: null,
+    material_cost: null,
+    labor_cost: null,
+    materials_notes: null,
   };
 
   return (

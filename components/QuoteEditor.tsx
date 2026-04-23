@@ -7,6 +7,7 @@ import { useQuote } from '@/hooks/useQuote';
 import { InternalNotesSection } from './InternalNotesSection';
 import { CustomerSection } from './CustomerSection';
 import { PricingSection } from './PricingSection';
+import { PhotosSection } from './PhotosSection';
 import { ActionBar } from './ActionBar';
 import { SaveIndicator } from './SaveIndicator';
 import { QuoteSentView } from './QuoteSentView';
@@ -26,8 +27,10 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
     error,
     saveStatus,
     updateField,
-    setBaseCost,
+    updateQuote,
     setSellPrice,
+    setMaterialCost,
+    setLaborCost,
     toggleDeposit,
     refetch,
   } = useQuote(quoteId);
@@ -182,11 +185,30 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
         <CustomerSection quote={quote} onFieldChange={updateField} />
 
+        <PhotosSection quoteId={quote.id} />
+
         <PricingSection
           quote={quote}
-          onSetBaseCost={setBaseCost}
+          onSetMaterialCost={setMaterialCost}
+          onSetLaborCost={setLaborCost}
           onSetSellPrice={setSellPrice}
           onToggleDeposit={toggleDeposit}
+          onMaterialsNotesChange={(notes) => updateField('materials_notes', notes)}
+          onLegacySplit={(material, labor) => {
+            // Atomically commit the legacy split: material + labor == existing base_cost,
+            // so base_cost stays the same; only misc cascade re-fires via the sell-price path.
+            const baseCost = material + labor;
+            const markedUpPrice = baseCost > 0 ? baseCost / 0.67 : 0;
+            const total = Math.ceil(markedUpPrice / 10) * 10;
+            const sellPrice = quote.quote_price || 0;
+            const misc = sellPrice - total;
+            updateQuote({
+              material_cost: material,
+              labor_cost: labor,
+              base_cost: baseCost,
+              misc,
+            });
+          }}
         />
       </main>
 

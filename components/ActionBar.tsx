@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { RepairQuote } from '@/types/quote';
 import { supabase } from '@/lib/supabase';
 
@@ -25,6 +26,7 @@ function parseScheduledDateTime(timestamp: string | null): { date: string; time:
 }
 
 export function ActionBar({ quote, onUpdate }: ActionBarProps) {
+  const router = useRouter();
   const parsed = parseScheduledDateTime(quote.scheduled_date);
   const [scheduledDate, setScheduledDate] = useState(parsed.date);
   const [scheduledTime, setScheduledTime] = useState(parsed.time);
@@ -57,8 +59,7 @@ export function ActionBar({ quote, onUpdate }: ActionBarProps) {
       alert('Please fill in all required fields');
       return;
     }
-    // Open customer view in new tab (with internal flag for Colt's view)
-    window.open(`/customer/${quote.id}?internal=true`, '_blank');
+    router.push(`/customer/${quote.id}?internal=true`);
   };
 
   const handleSchedule = async () => {

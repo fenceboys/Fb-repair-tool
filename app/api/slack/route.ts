@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const PHOTOS_BUCKET = 'quote-photos';
 
 interface QuotePayload {
+  id?: string;
   client_name: string;
   phone: string;
   email?: string;
@@ -8,6 +12,9 @@ interface QuotePayload {
   city_state?: string;
   quote_price?: number;
   base_cost?: number;
+  material_cost?: number | null;
+  labor_cost?: number | null;
+  materials_notes?: string | null;
   deposit?: number;
   requires_deposit?: boolean;
   repair_description?: string;
@@ -43,6 +50,114 @@ const formatCurrency = (amount: number) =>
     currency: 'USD',
     minimumFractionDigits: 0,
   }).format(amount);
+
+// Fetch quote_photos for a given quote, download each from Supabase storage,
+// upload each to Slack, and return the `{id, title}` entries to pass to
+// `files.completeUploadExternal`. Returns an empty array if no photos exist or
+// if Supabase creds are missing. Failures for individual photos are logged but
+// do not abort the Slack send.
+async function uploadQuotePhotosToSlack(
+  quoteId: string | undefined,
+  botToken: string
+): Promise<Array<{ id: string; title: string }>> {
+  if (!quoteId) return [];
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) return [];
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: photos, error } = await supabase
+    .from('quote_photos')
+    .select('id, storage_path, filename, file_size, mime_type')
+    .eq('quote_id', quoteId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[Slack] Failed to load quote photos:', error);
+    return [];
+  }
+  if (!photos || photos.length === 0) return [];
+
+  const uploaded: Array<{ id: string; title: string }> = [];
+
+  for (const photo of photos) {
+    try {
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from(PHOTOS_BUCKET)
+        .download(photo.storage_path);
+      if (dlErr || !blob) {
+        console.error('[Slack] Photo download failed:', photo.storage_path, dlErr);
+        continue;
+      }
+      const arrayBuffer = await blob.arrayBuffer();
+      const bytes = Buffer.from(arrayBuffer);
+
+      const urlRes = await fetch(
+        'https://slack.com/api/files.getUploadURLExternal',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${botToken}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            filename: photo.filename || 'photo.jpg',
+            length: bytes.length.toString(),
+          }),
+        }
+      );
+      const urlData: SlackUploadUrlResponse = await urlRes.json();
+      if (!urlData.ok) {
+        console.error('[Slack] getUploadURL failed for photo:', photo.storage_path, urlData.error);
+        continue;
+      }
+
+      const putRes = await fetch(urlData.upload_url, {
+        method: 'POST',
+        headers: { 'Content-Type': photo.mime_type || 'application/octet-stream' },
+        body: bytes,
+      });
+      if (!putRes.ok) {
+        console.error('[Slack] Photo PUT failed:', photo.storage_path, putRes.status);
+        continue;
+      }
+
+      uploaded.push({ id: urlData.file_id, title: photo.filename || 'photo' });
+    } catch (err) {
+      console.error('[Slack] Unexpected photo upload error:', photo.storage_path, err);
+    }
+  }
+
+  return uploaded;
+}
+
+// Normalize a phone number for Slack display. Slack auto-linkifies raw phone
+// patterns into `<tel:...|...>` mrkdwn links and some clients render the link
+// syntax as literal text. Also handles DB values that were saved already
+// containing that literal syntax. Emits a well-formed Slack tel: link or a
+// plain "(xxx) xxx-xxxx" string with a zero-width space inserted to prevent
+// re-linkification.
+const formatPhoneForSlack = (raw: string | null | undefined): string => {
+  if (!raw) return 'N/A';
+  // Strip any existing `<tel:...|DISPLAY>` wrap and keep the DISPLAY
+  const unwrapped = raw.replace(/<tel:[^|>]*\|?([^>]*)>/g, '$1').trim();
+  const digits = unwrapped.replace(/\D/g, '');
+  if (digits.length === 10) {
+    const display = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `<tel:+1${digits}|${display}>`;
+  }
+  if (digits.length === 11 && digits.startsWith('1')) {
+    const d = digits.slice(1);
+    const display = `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+    return `<tel:+1${d}|${display}>`;
+  }
+  return unwrapped || 'N/A';
+};
 
 export async function POST(request: NextRequest) {
   console.log('[Slack API] Received request');
@@ -114,7 +229,7 @@ export async function POST(request: NextRequest) {
         getStatusHeader(),
         '',
         `*Address:* ${quote.address || 'N/A'}${quote.city_state ? `, ${quote.city_state}` : ''}`,
-        `*Phone:* ${quote.phone || 'N/A'}`,
+        `*Phone:* ${formatPhoneForSlack(quote.phone)}`,
       ];
 
       // Add quote price for relevant statuses
@@ -232,7 +347,7 @@ export async function POST(request: NextRequest) {
       '',
       getStatusLine(),
       '',
-      `*Phone:* ${quote.phone}`,
+      `*Phone:* ${formatPhoneForSlack(quote.phone)}`,
       `*Address:* ${quote.address}${quote.city_state ? `, ${quote.city_state}` : ''}`,
       `*Quote Price:* ${formatCurrency(quotePrice)}`,
       quote.requires_deposit
@@ -248,10 +363,25 @@ export async function POST(request: NextRequest) {
       messageLines.push('', `*Note:* ${customMessage}`);
     }
 
-    // Add payout breakdown
+    // Financial breakdown block — Cost + Payout grouped together at the bottom.
+    const materialCost = quote.material_cost ?? null;
+    const laborCost = quote.labor_cost ?? null;
+    messageLines.push('', '---');
+
+    if (materialCost !== null || laborCost !== null) {
+      messageLines.push(
+        `*Cost Breakdown:*`,
+        `• Material: ${formatCurrency(materialCost ?? 0)}`,
+        `• Labor: ${formatCurrency(laborCost ?? 0)}`,
+        `• Total Cost: ${formatCurrency((materialCost ?? 0) + (laborCost ?? 0))}`
+      );
+      if (quote.materials_notes?.trim()) {
+        messageLines.push(`• Notes: ${quote.materials_notes.trim()}`);
+      }
+      messageLines.push('');
+    }
+
     messageLines.push(
-      '',
-      '---',
       `*Payout Breakdown:*`,
       `• Colt: ${formatCurrency(coltPayout)}`,
       `• FB Margin: ${formatCurrency(fbMargin)}`,
@@ -259,6 +389,9 @@ export async function POST(request: NextRequest) {
     );
 
     const initialComment = messageLines.join('\n');
+
+    // Step 2b: Upload any attached quote photos so they appear with the proposal.
+    const photoFiles = await uploadQuotePhotosToSlack(quote.id, botToken);
 
     // Step 3: Complete the upload and share to channel
     const completeResponse = await fetch(
@@ -270,7 +403,10 @@ export async function POST(request: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          files: [{ id: uploadUrlData.file_id, title: filename || 'quote.pdf' }],
+          files: [
+            { id: uploadUrlData.file_id, title: filename || 'quote.pdf' },
+            ...photoFiles,
+          ],
           channel_id: channelId,
           initial_comment: initialComment,
         }),

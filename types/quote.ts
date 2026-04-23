@@ -40,6 +40,9 @@ export interface RepairQuote {
   portal_closed: boolean;
   internal_notes: string | null;
   payment_client_secret: string | null;
+  material_cost: number | null;
+  labor_cost: number | null;
+  materials_notes: string | null;
 }
 
 export type RepairQuoteInsert = Omit<RepairQuote, 'id' | 'created_at' | 'updated_at'>;
