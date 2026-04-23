@@ -58,17 +58,36 @@ export default function LoginPage() {
     setMessage(null);
 
     const supabase = createBrowserSupabaseClient();
+    const token = code.trim();
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      email,
-      token: code.trim(),
-      type: 'email',
-    });
+    // Try the most common OTP types in sequence. Supabase returns
+    // "token has expired or is invalid" if the type doesn't match
+    // what was issued, which is ambiguous with an actually expired
+    // token. Fall through all three to disambiguate.
+    const typesToTry = ['email', 'magiclink', 'invite'] as const;
+    let lastError: { message: string; status?: number } | null = null;
+    let session: Awaited<ReturnType<typeof supabase.auth.verifyOtp>>['data']['session'] = null;
 
-    if (error || !data.session) {
+    for (const type of typesToTry) {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type,
+      });
+      if (!error && data.session) {
+        session = data.session;
+        break;
+      }
+      lastError = error ? { message: error.message, status: error.status } : null;
+    }
+
+    if (!session) {
+      const detail = lastError?.message
+        ? ` (${lastError.message}${lastError.status ? `, ${lastError.status}` : ''})`
+        : '';
       setMessage({
         type: 'error',
-        text: 'That code was invalid or expired. Try again, or request a new code.',
+        text: `That code was invalid or expired${detail}. Try again, or request a new code.`,
       });
       setLoading(false);
       return;
@@ -77,7 +96,7 @@ export default function LoginPage() {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', data.session.user.id)
+      .eq('id', session.user.id)
       .single();
 
     const redirectTo = profile?.role === 'salesperson' ? '/' : '/dashboard';
