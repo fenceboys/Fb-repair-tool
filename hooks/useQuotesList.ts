@@ -20,6 +20,7 @@ export function useQuotesList() {
       let query = supabase
         .from('repair_quotes')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (searchQuery.trim()) {
@@ -80,16 +81,18 @@ export function useQuotesList() {
     }
   };
 
+  // Soft-delete: sets deleted_at so the row is hidden from lists but recoverable
+  // from /trash. Hard deletion only happens from the trash "Permanently delete"
+  // button.
   const deleteQuote = async (id: string): Promise<boolean> => {
     try {
       const { error: deleteError } = await supabase
         .from('repair_quotes')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id);
 
       if (deleteError) throw deleteError;
 
-      // Update local state
       setQuotes(prev => prev.filter(q => q.id !== id));
       return true;
     } catch (err) {

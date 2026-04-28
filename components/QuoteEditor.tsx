@@ -7,10 +7,10 @@ import { useQuote } from '@/hooks/useQuote';
 import { InternalNotesSection } from './InternalNotesSection';
 import { CustomerSection } from './CustomerSection';
 import { PricingSection } from './PricingSection';
-import { PhotosSection } from './PhotosSection';
 import { ActionBar } from './ActionBar';
 import { SaveIndicator } from './SaveIndicator';
 import { QuoteSentView } from './QuoteSentView';
+import { DeletedQuoteBanner } from './DeletedQuoteBanner';
 import { formatCurrency } from '@/lib/calculations';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 
@@ -88,12 +88,19 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
+      {quote.deleted_at && (
+        <DeletedQuoteBanner
+          quoteId={quote.id}
+          deletedAt={quote.deleted_at}
+          onRestored={refetch}
+        />
+      )}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.back()}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
             >
               <svg
@@ -130,12 +137,12 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
           {/* Quote Summary */}
           <div className="mt-3 flex items-center justify-between">
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">
-                {quote.client_name || 'New Quote'}
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-gray-900 truncate">
+                {quote.title || quote.client_name || 'New Quote'}
               </h1>
-              <p className="text-sm text-gray-500">
-                {quote.address || 'No address'}
+              <p className="text-sm text-gray-500 truncate">
+                {quote.title && quote.client_name ? quote.client_name : (quote.address || 'No address')}
               </p>
             </div>
             <div className="text-right">
@@ -181,11 +188,25 @@ export function QuoteEditor({ quoteId }: QuoteEditorProps) {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <section className="bg-white rounded-lg border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Quote Title <span className="text-xs text-gray-500 font-normal">(internal)</span>
+          </label>
+          <input
+            type="text"
+            value={quote.title ?? ''}
+            onChange={(e) => updateField('title', e.target.value)}
+            placeholder='e.g. "Front fence repair" or "Back gate replacement"'
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Helps tell multiple quotes for the same customer apart. Not shown to the customer.
+          </p>
+        </section>
+
         <InternalNotesSection quote={quote} onFieldChange={updateField} />
 
         <CustomerSection quote={quote} onFieldChange={updateField} />
-
-        <PhotosSection quoteId={quote.id} />
 
         <PricingSection
           quote={quote}

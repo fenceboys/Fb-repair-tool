@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuotesList } from '@/hooks/useQuotesList';
 import { useUserRole } from '@/hooks/useUserRole';
 import { QuoteCard } from './QuoteCard';
+import { NewCustomerModal } from './NewCustomerModal';
 
 export function QuotesList() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export function QuotesList() {
     createQuote,
     deleteQuote,
   } = useQuotesList();
+  const [newCustomerOpen, setNewCustomerOpen] = useState(false);
 
   const handleNewQuote = async () => {
     const newId = await createQuote();
@@ -41,6 +44,18 @@ export function QuotesList() {
               <h1 className="text-xl font-bold text-gray-900">Repair Quotes</h1>
             </div>
             <div className="flex items-center gap-2">
+              <Link
+                href="/customers"
+                className="px-3 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Customers
+              </Link>
+              <button
+                onClick={() => setNewCustomerOpen(true)}
+                className="px-3 py-2 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors hidden sm:inline-flex"
+              >
+                + Customer
+              </button>
               <button
                 onClick={handleNewQuote}
                 className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
@@ -148,6 +163,8 @@ export function QuotesList() {
           </div>
         )}
       </main>
+
+      <NewCustomerModal isOpen={newCustomerOpen} onClose={() => setNewCustomerOpen(false)} />
     </div>
   );
 }

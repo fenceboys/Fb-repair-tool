@@ -57,10 +57,10 @@ export default function PhotosPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
           <p className="text-red-700">{error || 'Quote not found'}</p>
           <Link
-            href="/dashboard"
+            href="/"
             className="mt-4 inline-block text-blue-600 hover:text-blue-700"
           >
-            Back to Dashboard
+            Back to Customers
           </Link>
         </div>
       </div>

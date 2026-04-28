@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { formatPhoneForSlackLink } from '@/lib/phoneUtils';
 
 const PHOTOS_BUCKET = 'quote-photos';
 
@@ -136,28 +137,7 @@ async function uploadQuotePhotosToSlack(
   return uploaded;
 }
 
-// Normalize a phone number for Slack display. Slack auto-linkifies raw phone
-// patterns into `<tel:...|...>` mrkdwn links and some clients render the link
-// syntax as literal text. Also handles DB values that were saved already
-// containing that literal syntax. Emits a well-formed Slack tel: link or a
-// plain "(xxx) xxx-xxxx" string with a zero-width space inserted to prevent
-// re-linkification.
-const formatPhoneForSlack = (raw: string | null | undefined): string => {
-  if (!raw) return 'N/A';
-  // Strip any existing `<tel:...|DISPLAY>` wrap and keep the DISPLAY
-  const unwrapped = raw.replace(/<tel:[^|>]*\|?([^>]*)>/g, '$1').trim();
-  const digits = unwrapped.replace(/\D/g, '');
-  if (digits.length === 10) {
-    const display = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    return `<tel:+1${digits}|${display}>`;
-  }
-  if (digits.length === 11 && digits.startsWith('1')) {
-    const d = digits.slice(1);
-    const display = `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-    return `<tel:+1${d}|${display}>`;
-  }
-  return unwrapped || 'N/A';
-};
+const formatPhoneForSlack = formatPhoneForSlackLink;
 
 export async function POST(request: NextRequest) {
   console.log('[Slack API] Received request');

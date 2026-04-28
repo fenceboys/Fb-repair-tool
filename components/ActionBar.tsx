@@ -55,10 +55,20 @@ export function ActionBar({ quote, onUpdate }: ActionBarProps) {
   const isSent = quote.status === 'awaiting_signature' || quote.status === 'awaiting_payment';
   const isPaidOrScheduled = quote.status === 'paid' || quote.status === 'repair_scheduled';
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!isValid) {
       alert('Please fill in all required fields');
       return;
+    }
+    // Auto-advance the workflow: clicking Next means Colt has finished
+    // pricing the visit, so the quote is now in the "building the proposal"
+    // phase. Only nudge forward — never downgrade a revision.
+    if (quote.status === 'scheduling_quote' || quote.status === 'quote_scheduled') {
+      await supabase
+        .from('repair_quotes')
+        .update({ status: 'draft', updated_at: new Date().toISOString() })
+        .eq('id', quote.id);
+      onUpdate?.();
     }
     router.push(`/customer/${quote.id}?internal=true`);
   };

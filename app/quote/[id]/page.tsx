@@ -8,11 +8,13 @@ import { formatCurrency } from '@/lib/calculations';
 import { generatePDF } from '@/lib/pdf';
 import { notifyQuoteScheduled, notifyRepairScheduled } from '@/lib/slackNotifications';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
+import { DeletedQuoteBanner } from '@/components/DeletedQuoteBanner';
 import type { RepairQuote } from '@/types/quote';
 
 interface QuoteData {
   id: string;
   created_at: string;
+  title: string | null;
   client_name: string | null;
   phone: string | null;
   email: string | null;
@@ -23,13 +25,15 @@ interface QuoteData {
   quote_price: number;
   deposit: number;
   requires_deposit: boolean;
-  status: 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status: string;
   pdf_url: string | null;
   scheduled_date: string | null;
   quote_appointment_date: string | null;
   revision_count: number;
   revised_at: string | null;
   portal_closed: boolean;
+  deleted_at: string | null;
+  customer_id: string | null;
 }
 
 type ScheduleType = 'quote' | 'repair';
@@ -128,6 +132,8 @@ export default function QuoteDetailsPage() {
     }
   };
 
+  // Project page scheduling is repair-only. Quote-visit scheduling now
+  // lives on the customer profile since it's a property-level event.
   const handleSchedule = async () => {
     if (!quote || !scheduledDate || !scheduledTime) return;
 
@@ -135,37 +141,19 @@ export default function QuoteDetailsPage() {
     try {
       const timestamp = new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString();
 
-      if (scheduleType === 'quote') {
-        const { error: updateError } = await supabase
-          .from('repair_quotes')
-          .update({
-            quote_appointment_date: timestamp,
-            status: 'quote_scheduled',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', quoteId);
+      const { error: updateError } = await supabase
+        .from('repair_quotes')
+        .update({
+          scheduled_date: timestamp,
+          status: 'repair_scheduled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', quoteId);
 
-        if (updateError) throw updateError;
-        setQuote({ ...quote, quote_appointment_date: timestamp, status: 'quote_scheduled' });
+      if (updateError) throw updateError;
+      setQuote({ ...quote, scheduled_date: timestamp, status: 'repair_scheduled' });
 
-        // Send Slack notification for quote scheduled
-        notifyQuoteScheduled(quote, timestamp);
-      } else {
-        const { error: updateError } = await supabase
-          .from('repair_quotes')
-          .update({
-            scheduled_date: timestamp,
-            status: 'repair_scheduled',
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', quoteId);
-
-        if (updateError) throw updateError;
-        setQuote({ ...quote, scheduled_date: timestamp, status: 'repair_scheduled' });
-
-        // Send Slack notification for repair scheduled
-        notifyRepairScheduled(quote, timestamp);
-      }
+      notifyRepairScheduled(quote, timestamp);
       setShowScheduleModal(false);
     } catch (err) {
       console.error('Error scheduling:', err);
@@ -294,10 +282,10 @@ export default function QuoteDetailsPage() {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
           <p className="text-red-700">{error || 'Quote not found'}</p>
           <Link
-            href="/dashboard"
+            href="/"
             className="mt-4 inline-block text-blue-600 hover:text-blue-700"
           >
-            Back to Dashboard
+            Back to Customers
           </Link>
         </div>
       </div>
@@ -310,29 +298,46 @@ export default function QuoteDetailsPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link
-              href="/dashboard"
+            <button
+              type="button"
+              onClick={() => router.back()}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Dashboard
-            </Link>
+              Back
+            </button>
           </div>
         </div>
       </header>
+
+      {quote.deleted_at && (
+        <DeletedQuoteBanner
+          quoteId={quote.id}
+          deletedAt={quote.deleted_at}
+          onRestored={() => setQuote({ ...quote, deleted_at: null })}
+        />
+      )}
 
       <main className="max-w-3xl mx-auto px-6 py-6">
         {/* Quote Info Card */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {quote.client_name || 'Unnamed Quote'}
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 truncate">
+                {quote.title || quote.repair_description || 'Untitled Quote'}
               </h1>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-gray-500">Created {formatDate(quote.created_at)}</p>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {quote.customer_id && (
+                  <Link
+                    href={`/customers/${quote.customer_id}`}
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    {quote.client_name || 'Customer'}
+                  </Link>
+                )}
+                <p className="text-gray-500 text-sm">· Created {formatDate(quote.created_at)}</p>
                 {quote.revision_count > 0 && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
                     Revision {quote.revision_count}
@@ -475,63 +480,32 @@ export default function QuoteDetailsPage() {
             </div>
           </Link>
 
-          {/* Schedule */}
+          {/* Schedule Repair — quote visits are scheduled on the customer profile */}
           <button
-            onClick={() => openScheduleModal(quote.status === 'paid' || quote.status === 'repair_scheduled' ? 'repair' : 'quote')}
+            onClick={() => openScheduleModal('repair')}
             className={`bg-white rounded-lg border border-gray-200 p-6 hover:border-purple-400 hover:shadow-md transition-all flex flex-col items-center gap-3 text-center w-full ${
-              (quote.quote_appointment_date || quote.scheduled_date) ? 'border-purple-300 bg-purple-50' : ''
+              quote.scheduled_date ? 'border-purple-300 bg-purple-50' : ''
             }`}
           >
             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              (quote.quote_appointment_date || quote.scheduled_date) ? 'bg-purple-200' : 'bg-purple-100'
+              quote.scheduled_date ? 'bg-purple-200' : 'bg-purple-100'
             }`}>
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Schedule</p>
+              <p className="font-semibold text-gray-900">Schedule Repair</p>
               <p className="text-sm text-gray-500">
                 {quote.scheduled_date
-                  ? `Repair: ${formatDisplayDateTime(quote.scheduled_date)}`
-                  : quote.quote_appointment_date
-                  ? `Quote: ${formatDisplayDateTime(quote.quote_appointment_date)}`
-                  : 'Set date and time'}
+                  ? formatDisplayDateTime(quote.scheduled_date)
+                  : 'Set repair date and time'}
               </p>
             </div>
           </button>
 
-          {/* Notes */}
-          <Link
-            href={`/quote/${quoteId}/notes`}
-            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-teal-400 hover:shadow-md transition-all flex flex-col items-center gap-3 text-center"
-          >
-            <div className="w-12 h-12 bg-teal-100 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">Notes</p>
-              <p className="text-sm text-gray-500">Add internal notes</p>
-            </div>
-          </Link>
-
-          {/* Photos */}
-          <Link
-            href={`/quote/${quoteId}/photos`}
-            className="bg-white rounded-lg border border-gray-200 p-6 hover:border-pink-400 hover:shadow-md transition-all flex flex-col items-center gap-3 text-center"
-          >
-            <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900">Photos</p>
-              <p className="text-sm text-gray-500">Upload &amp; view gallery</p>
-            </div>
-          </Link>
+          {/* Notes and Photos moved to the customer profile (property-level).
+             See /customers/[customer_id]. */}
 
           {/* Revise Quote - only show when proposal has been sent */}
           {(quote.status === 'awaiting_signature' || quote.status === 'awaiting_payment' || quote.status === 'paid' || quote.status === 'repair_scheduled') && (
@@ -609,34 +583,8 @@ export default function QuoteDetailsPage() {
                 </button>
               </div>
 
-              {/* Type Toggle */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setScheduleType('quote')}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    scheduleType === 'quote'
-                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-500'
-                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
-                  }`}
-                >
-                  Quote Appointment
-                </button>
-                <button
-                  onClick={() => setScheduleType('repair')}
-                  className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                    scheduleType === 'repair'
-                      ? 'bg-green-100 text-green-700 border-2 border-green-500'
-                      : 'bg-gray-100 text-gray-600 border-2 border-transparent hover:bg-gray-200'
-                  }`}
-                >
-                  Repair
-                </button>
-              </div>
-
               <p className="text-sm text-gray-600 mb-4">
-                {scheduleType === 'quote'
-                  ? 'When should Colt visit to give the quote?'
-                  : 'When should Colt come to do the repair?'}
+                When should Colt come to do the repair?
               </p>
 
               <div className="space-y-4">
@@ -649,7 +597,7 @@ export default function QuoteDetailsPage() {
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 <div>
@@ -660,19 +608,15 @@ export default function QuoteDetailsPage() {
                     type="time"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                 </div>
                 <button
                   onClick={handleSchedule}
                   disabled={!scheduledDate || !scheduledTime || scheduling}
-                  className={`w-full px-6 py-3 text-white font-semibold rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors ${
-                    scheduleType === 'quote'
-                      ? 'bg-blue-600 hover:bg-blue-700'
-                      : 'bg-green-600 hover:bg-green-700'
-                  }`}
+                  className="w-full px-6 py-3 text-white font-semibold rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors bg-green-600 hover:bg-green-700"
                 >
-                  {scheduling ? 'Scheduling...' : scheduleType === 'quote' ? 'Schedule Quote' : 'Schedule Repair'}
+                  {scheduling ? 'Scheduling...' : 'Schedule Repair'}
                 </button>
               </div>
             </div>

@@ -5,7 +5,19 @@ import { createPortal } from 'react-dom';
 import { useStatusConfig } from '@/hooks/useStatusConfig';
 import { getStatusColorClasses } from '@/types/admin';
 
-type QuoteStatus = 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+type QuoteStatus =
+  | 'scheduling_quote'
+  | 'quote_scheduled'
+  | 'draft'
+  | 'awaiting_signature'
+  | 'awaiting_payment'
+  | 'paid'
+  | 'repair_scheduled'
+  | 'requesting_permit'
+  | 'scheduling_repair'
+  | 'repair_complete'
+  | 'rejected_quote'
+  | 'lost_contact';
 
 interface StatusBadgeProps {
   status: string;
@@ -22,20 +34,43 @@ const defaultStatusStyles: Record<string, string> = {
   awaiting_payment: 'bg-green-100 text-green-700',
   paid: 'bg-purple-100 text-purple-700',
   repair_scheduled: 'bg-teal-100 text-teal-700',
+  requesting_permit: 'bg-yellow-100 text-yellow-700',
+  scheduling_repair: 'bg-indigo-100 text-indigo-700',
+  repair_complete: 'bg-pink-100 text-pink-700',
+  rejected_quote: 'bg-red-100 text-red-700',
+  lost_contact: 'bg-gray-100 text-gray-700',
 };
 
 // Default labels (used as fallback)
 const defaultStatusLabels: Record<string, string> = {
   scheduling_quote: 'Scheduling Quote',
   quote_scheduled: 'Quote Scheduled',
-  draft: 'Draft',
+  draft: 'Building Proposal',
   awaiting_signature: 'Awaiting Signature',
   awaiting_payment: 'Awaiting Payment',
   paid: 'Paid',
   repair_scheduled: 'Repair Scheduled',
+  requesting_permit: 'Requesting Permit',
+  scheduling_repair: 'Scheduling Repair',
+  repair_complete: 'Repair Complete',
+  rejected_quote: 'Rejected Quote',
+  lost_contact: 'Lost Contact',
 };
 
-const defaultAllStatuses: QuoteStatus[] = ['scheduling_quote', 'quote_scheduled', 'draft', 'awaiting_signature', 'awaiting_payment', 'paid', 'repair_scheduled'];
+const defaultAllStatuses: QuoteStatus[] = [
+  'scheduling_quote',
+  'quote_scheduled',
+  'draft',
+  'awaiting_signature',
+  'awaiting_payment',
+  'paid',
+  'requesting_permit',
+  'scheduling_repair',
+  'repair_scheduled',
+  'repair_complete',
+  'rejected_quote',
+  'lost_contact',
+];
 
 export function StatusBadge({ status, onChange, onQuoteScheduled }: StatusBadgeProps) {
   const { statuses, loading } = useStatusConfig();
@@ -59,7 +94,7 @@ export function StatusBadge({ status, onChange, onQuoteScheduled }: StatusBadgeP
 
   const getStatusLabel = (statusKey: string): string => {
     const statusConfig = statuses.find((s) => s.status_key === statusKey);
-    return statusConfig?.label || defaultStatusLabels[statusKey] || 'Draft';
+    return statusConfig?.label || defaultStatusLabels[statusKey] || 'Building Proposal';
   };
 
   const getAllStatuses = (): QuoteStatus[] => {
@@ -96,12 +131,15 @@ export function StatusBadge({ status, onChange, onQuoteScheduled }: StatusBadgeP
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+      const items = allStatuses.length || 7;
+      const estimatedHeight = Math.min(items * 40 + 16, window.innerHeight * 0.7);
+      const wouldOverflow = rect.bottom + 4 + estimatedHeight > window.innerHeight - 16;
+      const top = wouldOverflow ? Math.max(16, rect.top - estimatedHeight - 4) : rect.bottom + 4;
+      const minW = 180;
+      const left = Math.min(rect.left, window.innerWidth - minW - 16);
+      setDropdownPosition({ top, left: Math.max(16, left) });
     }
-  }, [isOpen]);
+  }, [isOpen, allStatuses.length]);
 
   const handleSelect = (newStatus: QuoteStatus) => {
     if (newStatus === status) {
@@ -173,7 +211,7 @@ export function StatusBadge({ status, onChange, onQuoteScheduled }: StatusBadgeP
         {isOpen && typeof document !== 'undefined' && createPortal(
           <div
             ref={dropdownRef}
-            className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px]"
+            className="fixed z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] max-h-[70vh] overflow-y-auto"
             style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
           >
             {allStatuses.map((s) => (
