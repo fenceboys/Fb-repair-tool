@@ -21,6 +21,7 @@ const EMPTY: CustomerInsert = {
   city_state: '',
   zip: '',
   notes: '',
+  quote_appointment_date: null,
 };
 
 export function NewCustomerModal({ isOpen, onClose, onCreated }: NewCustomerModalProps) {
