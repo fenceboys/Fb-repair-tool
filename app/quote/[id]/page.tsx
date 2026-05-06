@@ -25,7 +25,7 @@ interface QuoteData {
   quote_price: number;
   deposit: number;
   requires_deposit: boolean;
-  status: string;
+  status: RepairQuote['status'];
   pdf_url: string | null;
   scheduled_date: string | null;
   quote_appointment_date: string | null;
