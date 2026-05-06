@@ -6,6 +6,7 @@ import { SlackMessageModal } from './SlackMessageModal';
 import { SendProposalModal } from './SendProposalModal';
 import { InlineSignature } from './InlineSignature';
 import { supabase } from '@/lib/supabase';
+import { toE164 } from '@/lib/phoneUtils';
 import type { RepairQuote } from '@/types/quote';
 
 interface QuoteData {
@@ -51,13 +52,30 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     try {
       const link = `${window.location.origin}/customer/${quote.id}`;
 
-      // For now, use native SMS (will be replaced with Quo API later)
+      // Send SMS via Quo (OpenPhone). Runs server-side through /api/send-sms
+      // so the API key never reaches the browser. Failure is logged but
+      // non-fatal — the rest of the Send Proposal flow still completes.
       if (methods.sms) {
-        const phoneDigits = (quote.phone || '').replace(/\D/g, '');
-        const message = `Hi ${quote.client_name?.split(' ')[0] || 'there'}, here's your Fence Boys repair quote. You can view and sign it here: ${link}`;
-
-        // Open native SMS app
-        window.open(`sms:${phoneDigits}&body=${encodeURIComponent(message)}`, '_blank');
+        const to = toE164(quote.phone);
+        const firstName = quote.client_name?.split(' ')[0] || 'there';
+        const message = `Hi ${firstName}, your Fence Boys repair proposal is ready to view and sign: ${link}`;
+        if (to) {
+          try {
+            const res = await fetch('/api/send-sms', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to, content: message }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.success === false) {
+              console.error('[CustomerViewActions] SMS send failed:', data);
+            }
+          } catch (err) {
+            console.error('[CustomerViewActions] SMS send threw:', err);
+          }
+        } else {
+          console.warn('[CustomerViewActions] SMS skipped — phone not E.164-able:', quote.phone);
+        }
       }
 
       // Email will be added later with Google API
@@ -302,6 +320,9 @@ export function CustomerViewActions({ quote, onSignComplete, isInternal = false 
     material_cost: null,
     labor_cost: null,
     materials_notes: null,
+    customer_id: null,
+    deleted_at: null,
+    title: null,
   };
 
   return (

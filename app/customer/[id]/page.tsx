@@ -161,9 +161,9 @@ export default function CustomerViewPage() {
         <div className="max-w-lg mx-auto px-4 py-4 relative">
           {isInternal && (
             <button
-              onClick={() => router.push(`/quote/${quoteId}/edit`)}
+              onClick={() => router.back()}
               className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-gray-600 hover:text-gray-900"
-              aria-label="Back to quote editor"
+              aria-label="Back"
             >
               <svg
                 className="w-5 h-5"
@@ -181,17 +181,36 @@ export default function CustomerViewPage() {
               <span className="text-sm">Back</span>
             </button>
           )}
-          <div className="flex items-center justify-center gap-3">
-            <img
-              src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
-              alt={config?.portal_brand_name || 'Fence Boys'}
-              className="h-12 w-auto rounded"
-            />
-            <div className="text-center">
-              <h1 className="text-xl font-bold text-gray-900">{config?.portal_brand_name || 'Fence Boys'}</h1>
-              <p className="text-sm text-gray-500">Repair Quote</p>
+          {isInternal ? (
+            <button
+              type="button"
+              onClick={() => router.push('/')}
+              className="flex items-center justify-center gap-3 w-full hover:opacity-80 transition-opacity"
+              aria-label="Go home"
+            >
+              <img
+                src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
+                alt={config?.portal_brand_name || 'Fence Boys'}
+                className="h-12 w-auto rounded"
+              />
+              <div className="text-center">
+                <h1 className="text-xl font-bold text-gray-900">{config?.portal_brand_name || 'Fence Boys'}</h1>
+                <p className="text-sm text-gray-500">Repair Quote</p>
+              </div>
+            </button>
+          ) : (
+            <div className="flex items-center justify-center gap-3">
+              <img
+                src={config?.portal_logo_url || '/fence-boys-logo.jpg'}
+                alt={config?.portal_brand_name || 'Fence Boys'}
+                className="h-12 w-auto rounded"
+              />
+              <div className="text-center">
+                <h1 className="text-xl font-bold text-gray-900">{config?.portal_brand_name || 'Fence Boys'}</h1>
+                <p className="text-sm text-gray-500">Repair Quote</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </header>
 

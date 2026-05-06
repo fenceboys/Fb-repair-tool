@@ -27,7 +27,19 @@ export interface RepairQuote {
   misc: number;
   deposit: number;
   requires_deposit: boolean;
-  status: 'scheduling_quote' | 'quote_scheduled' | 'draft' | 'awaiting_signature' | 'awaiting_payment' | 'paid' | 'repair_scheduled';
+  status:
+    | 'scheduling_quote'
+    | 'quote_scheduled'
+    | 'draft'
+    | 'awaiting_signature'
+    | 'awaiting_payment'
+    | 'paid'
+    | 'repair_scheduled'
+    | 'requesting_permit'
+    | 'scheduling_repair'
+    | 'repair_complete'
+    | 'rejected_quote'
+    | 'lost_contact';
   pdf_url: string | null;
   signed_copy_url: string | null;
   client_signature: string | null;
@@ -43,6 +55,9 @@ export interface RepairQuote {
   material_cost: number | null;
   labor_cost: number | null;
   materials_notes: string | null;
+  customer_id: string | null;
+  deleted_at: string | null;
+  title: string | null;
 }
 
 export type RepairQuoteInsert = Omit<RepairQuote, 'id' | 'created_at' | 'updated_at'>;

@@ -35,13 +35,13 @@ export function QuoteCard({ quote, onDelete }: QuoteCardProps) {
     const labels: Record<string, string> = {
       scheduling_quote: 'Scheduling Quote',
       quote_scheduled: 'Quote Scheduled',
-      draft: 'Draft',
+      draft: 'Building Proposal',
       awaiting_signature: 'Awaiting Signature',
       awaiting_payment: 'Awaiting Payment',
       paid: 'Paid',
       repair_scheduled: 'Repair Scheduled',
     };
-    return labels[status] || 'Draft';
+    return labels[status] || 'Building Proposal';
   };
 
   const handleDelete = (e: React.MouseEvent) => {

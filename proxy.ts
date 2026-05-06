@@ -76,19 +76,11 @@ export async function proxy(request: NextRequest) {
 
   const role = profile?.role || 'salesperson';
 
-  // Define admin-only routes
-  const adminOnlyRoutes = ['/dashboard', '/quote/'];
-  const isAdminRoute = adminOnlyRoutes.some(route => {
-    if (route === '/quote/') {
-      // /quote/[id]/edit is allowed for salesperson
-      // /quote/[id] (intermediate), /quote/[id]/payments, /quote/[id]/notes are admin only
-      const quoteMatch = pathname.match(/^\/quote\/[^/]+$/); // matches /quote/[id] exactly
-      const paymentsMatch = pathname.includes('/payments');
-      const notesMatch = pathname.includes('/notes');
-      return quoteMatch || paymentsMatch || notesMatch;
-    }
-    return pathname.startsWith(route);
-  });
+  // Define admin-only routes. All /quote/* pages are salesperson-accessible
+  // so Colt and admins share the same project surfaces; only the admin
+  // dashboard and trash recovery view are locked down.
+  const adminOnlyRoutes = ['/dashboard', '/trash'];
+  const isAdminRoute = adminOnlyRoutes.some(route => pathname.startsWith(route));
 
   // Redirect salesperson away from admin routes
   if (role === 'salesperson' && isAdminRoute) {

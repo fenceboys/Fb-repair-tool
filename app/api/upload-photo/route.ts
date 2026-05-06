@@ -9,12 +9,17 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
-    const quoteId = formData.get('quoteId') as string | null;
+    // Either quoteId or customerId may be provided. Photos are primarily
+    // property-scoped (customer_id), but legacy uploads still pass quoteId
+    // from the quote editor — in that case we derive customer_id from the
+    // linked quote so the photo attaches to the right household.
+    const quoteIdInput = formData.get('quoteId') as string | null;
+    const customerIdInput = formData.get('customerId') as string | null;
     const caption = (formData.get('caption') as string | null) ?? null;
 
-    if (!file || !quoteId) {
+    if (!file || (!quoteIdInput && !customerIdInput)) {
       return NextResponse.json(
-        { error: 'file and quoteId are required' },
+        { error: 'file and (quoteId or customerId) are required' },
         { status: 400 }
       );
     }
@@ -48,9 +53,20 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    let customerId = customerIdInput;
+    if (!customerId && quoteIdInput) {
+      const { data: quoteRow } = await supabase
+        .from('repair_quotes')
+        .select('customer_id')
+        .eq('id', quoteIdInput)
+        .single();
+      customerId = (quoteRow?.customer_id as string | null) ?? null;
+    }
+
     const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
     const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-    const storagePath = `${quoteId}/${crypto.randomUUID()}.${ext}`;
+    const pathPrefix = customerId ?? quoteIdInput ?? 'orphan';
+    const storagePath = `${pathPrefix}/${crypto.randomUUID()}.${ext}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
@@ -77,7 +93,8 @@ export async function POST(request: NextRequest) {
     const { data: row, error: insertError } = await supabase
       .from('quote_photos')
       .insert({
-        quote_id: quoteId,
+        quote_id: quoteIdInput,
+        customer_id: customerId,
         storage_path: storagePath,
         public_url: urlData.publicUrl,
         filename: file.name,

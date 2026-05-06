@@ -6,12 +6,13 @@ import type { QuotePhoto } from '@/types/photo';
 interface PhotoGalleryProps {
   photos: QuotePhoto[];
   onDelete?: (id: string) => void;
+  leadingTile?: React.ReactNode;
 }
 
-export function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
+export function PhotoGallery({ photos, onDelete, leadingTile }: PhotoGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  if (photos.length === 0) {
+  if (photos.length === 0 && !leadingTile) {
     return (
       <p className="text-sm text-gray-500 italic">No photos attached yet.</p>
     );
@@ -19,11 +20,15 @@ export function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
 
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
+      {/* Mobile: horizontal scroll strip so a growing gallery doesn't push the
+          page tall. Desktop (≥sm): 3-col grid. Tile widths are fixed when
+          scrolling so the tiles stay square and readable. */}
+      <div className="flex overflow-x-auto gap-2 -mx-1 px-1 snap-x sm:grid sm:grid-cols-3 sm:overflow-visible sm:snap-none sm:mx-0 sm:px-0">
+        {leadingTile}
         {photos.map((photo, i) => (
           <div
             key={photo.id}
-            className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 group"
+            className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 group shrink-0 w-28 sm:w-auto snap-start"
           >
             <button
               type="button"

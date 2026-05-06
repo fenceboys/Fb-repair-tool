@@ -98,7 +98,7 @@ export type MergeTag = typeof MERGE_TAGS[number]['tag'];
 export const DEFAULT_STATUS_CONFIG: Omit<StatusConfig, 'id' | 'created_at' | 'updated_at'>[] = [
   { status_key: 'scheduling_quote', label: 'Scheduling Quote', color: 'orange', sort_order: 1, show_in_dashboard_filter: true },
   { status_key: 'quote_scheduled', label: 'Quote Scheduled', color: 'gray', sort_order: 2, show_in_dashboard_filter: true },
-  { status_key: 'draft', label: 'Draft', color: 'amber', sort_order: 3, show_in_dashboard_filter: false },
+  { status_key: 'draft', label: 'Building Proposal', color: 'amber', sort_order: 3, show_in_dashboard_filter: false },
   { status_key: 'awaiting_signature', label: 'Awaiting Signature', color: 'blue', sort_order: 4, show_in_dashboard_filter: true },
   { status_key: 'awaiting_payment', label: 'Awaiting Payment', color: 'green', sort_order: 5, show_in_dashboard_filter: true },
   { status_key: 'paid', label: 'Paid', color: 'purple', sort_order: 6, show_in_dashboard_filter: true },
